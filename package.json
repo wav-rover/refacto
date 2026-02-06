@@ -16,7 +16,8 @@
   },
   "devDependencies": {
     "jest": "^30.2.0",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "prettier": "^3.8.1"
   },
   "overrides": {
     "tar": "7.5.4",
