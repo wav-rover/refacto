@@ -14,6 +14,12 @@ beforeEach(() => {
     }
 });
 
+afterEach(async () => {
+    if (db && typeof db.teardown === 'function') {
+        await db.teardown();
+    }
+});
+
 test('it initializes correctly', async () => {
     await db.init();
 });
