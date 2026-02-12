@@ -59,5 +59,5 @@ Chacun travaille en parallèle sur son périmètre. Branches , commits fréquent
 
 ## Règles communes
 
-- **Contrat par route :** quand une route a des tests verts, noter brièvement statut HTTP, structure JSON et cas d’erreur (pour Paul et les merges).
+- **Contrat par route :** quand une route a des tests verts, noter brièvement statut HTTP, structure JSON et cas d’erreur. → [contrats-routes.md](./contrats-routes.md)
 - **Points de sync (15–20 min) :** qui a figé quelles routes ; Paul adapte les E2E en fonction.
