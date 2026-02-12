@@ -25,20 +25,17 @@ Deux questions guident la refactorisation :
 ## Détails de la décision
 
 1. **Renforcer les tests pour figer le comportement actuel**
-
    - Analyser les règles métiers existantes.
    - Ajouter / compléter les tests unitaires et d’intégration backend (Jest).
    - Ajouter les tests end-to-end côté client (Playwright).
    - Ne pas modifier le comportement métier sans tests existants ou nouvellement ajoutés.
 
 2. **Sécuriser l’application et les dépendances**
-
    - Auditer les dépendances (backend et frontend) pour détecter les paquets obsolètes ou vulnérables.
    - Mettre à jour ou remplacer les dépendances à risque.
    - Ajouter des tests (ou renforcer ceux existants) pour couvrir les correctifs de sécurité.
 
 3. **Introduire TypeScript**
-
    - **Backend** :
      - Introduire TypeScript progressivement (fichiers clés en priorité).
      - Adapter la configuration de Jest pour supporter TypeScript (sans retirer Jest).
@@ -47,12 +44,10 @@ Deux questions guident la refactorisation :
      - S’assurer que les tests Playwright restent valides et stables.
 
 4. **Documentation et qualité des commits**
-
    - Rédiger des ADR pour les décisions structurantes (architecture, choix techniques majeurs).
    - Faire des commits propres, petits, cohérents et orientés sur une seule intention (tests, fix, migration TS, etc.).
 
 5. **Docker Compose**
-
    - Introduire **après** la sécurisation par les tests, la mise à jour des dépendances et le passage progressif à TypeScript.
    - Définir un ou plusieurs services (backend, frontend, base de données si applicable) dans un `docker-compose.yml`.
    - Permettre de lancer l’ensemble du stack en local avec une commande unique (`docker compose up` ou équivalent).
@@ -60,7 +55,6 @@ Deux questions guident la refactorisation :
    - S’assurer que les tests peuvent toujours s’exécuter (en local ou dans les conteneurs, selon le choix retenu).
 
 6. **Évolutions métier post-refactorisation : statut, priorité, date d’échéance**
-
    - Introduire **exclusivement après** :
      - La sécurisation du comportement existant par les tests.
      - La correction des failles de sécurité et la mise à jour des dépendances.
@@ -77,7 +71,6 @@ Deux questions guident la refactorisation :
 ## Conséquences
 
 - **Positives**
-
   - Fonctionnement de l’application fiabilisé par les tests.
   - Réduction des failles de sécurité et des risques liés aux dépendances.
   - Code plus robuste et maintenable grâce à TypeScript.

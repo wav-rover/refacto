@@ -1,0 +1,8 @@
+node_modules
+package-lock.json
+
+src/static/js/*
+!src/static/js/app.js
+
+src/static/css/bootstrap.min.css
+src/static/css/font-awesome/
