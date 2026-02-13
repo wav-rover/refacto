@@ -21,7 +21,7 @@ describe("addItem", () => {
   });
 
   test("stores item with valid name and returns it", async () => {
-    const id = "something-not-a-uuid";
+    const id = "1234";
     const name = "A sample item";
     const req = { body: { name } };
     const res = createRes();
