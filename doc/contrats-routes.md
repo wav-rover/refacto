@@ -30,3 +30,16 @@ Comportement figé par les tests Jest. À mettre à jour quand une route passe e
 | Item inexistant (id inconnu) | 404 | `{ "error": "Item not found" }` |
 
 **Spec :** `spec/routes/updateItem.spec.js`
+
+---
+
+## DELETE /items/:id (deleteItem)
+
+Pas de body.
+
+| Cas | Statut HTTP | Réponse |
+|-----|-------------|---------|
+| Item existant | 200 | Pas de body |
+| Item inexistant (id inconnu) | 404 | `{ "error": "Item not found" }` |
+
+**Spec :** `spec/routes/deleteItem.spec.js`
