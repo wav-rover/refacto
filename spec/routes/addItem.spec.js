@@ -26,11 +26,11 @@ describe("addItem", () => {
     const req = { body: { name } };
     const res = createRes();
 
-    uuid.mockReturnValue(id);
+  uuid.mockReturnValue(id);
 
-    await addItem(req, res);
+  await addItem(req, res);
 
-    const expectedItem = { id, name, completed: false };
+  const expectedItem = { id, name, completed: false };
 
     expect(db.storeItem).toHaveBeenCalledTimes(1);
     expect(db.storeItem).toHaveBeenCalledWith(expectedItem);
