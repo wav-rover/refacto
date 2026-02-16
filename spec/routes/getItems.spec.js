@@ -1,6 +1,5 @@
 const db = require("../../src/persistence");
 const getItems = require("../../src/routes/getItems");
-const ITEMS = [{ id: 12345 }];
 
 jest.mock("../../src/persistence", () => ({
   getItems: jest.fn(),
@@ -15,7 +14,7 @@ describe("getItems", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
-  
+
   test("it gets items correctly", async () => {
     const ITEMS = [{ id: "12345", name: "item", completed: false }];
     const req = {};
@@ -38,7 +37,7 @@ describe("getItems", () => {
     expect(db.getItems).toHaveBeenCalledTimes(1);
     expect(res.send).toHaveBeenCalledWith([]);
   });
-  
+
   test("does not send response when getItems rejects", async () => {
     const req = {};
     const res = createRes();
