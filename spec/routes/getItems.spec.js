@@ -27,4 +27,15 @@ describe("getItems", () => {
     expect(db.getItems).toHaveBeenCalledTimes(1);
     expect(res.send).toHaveBeenCalledWith(ITEMS);
   });
+
+  test("returns empty array when no items", async () => {
+    const req = {};
+    const res = createRes();
+    db.getItems.mockResolvedValue([]);
+
+    await getItems(req, res);
+
+    expect(db.getItems).toHaveBeenCalledTimes(1);
+    expect(res.send).toHaveBeenCalledWith([]);
+  });
 });
