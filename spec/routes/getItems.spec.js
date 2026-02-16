@@ -6,14 +6,25 @@ jest.mock("../../src/persistence", () => ({
   getItems: jest.fn(),
 }));
 
-test("it gets items correctly", async () => {
-  const req = {};
-  const res = { send: jest.fn() };
-  db.getItems.mockReturnValue(Promise.resolve(ITEMS));
+const createRes = () => ({
+  send: jest.fn(),
+  status: jest.fn().mockReturnThis(),
+});
 
-  await getItems(req, res);
+describe("getItems", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  
+  test("it gets items correctly", async () => {
+    const ITEMS = [{ id: "12345", name: "item", completed: false }];
+    const req = {};
+    const res = createRes();
+    db.getItems.mockResolvedValue(ITEMS);
 
-  expect(db.getItems.mock.calls.length).toBe(1);
-  expect(res.send.mock.calls[0].length).toBe(1);
-  expect(res.send.mock.calls[0][0]).toEqual(ITEMS);
+    await getItems(req, res);
+
+    expect(db.getItems).toHaveBeenCalledTimes(1);
+    expect(res.send).toHaveBeenCalledWith(ITEMS);
+  });
 });

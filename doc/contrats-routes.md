@@ -43,3 +43,14 @@ Pas de body.
 | Item inexistant (id inconnu) | 404 | `{ "error": "Item not found" }` |
 
 **Spec :** `spec/routes/deleteItem.spec.js`
+
+## GET /items (getItems)
+
+Pas de body. Retourne la liste des items.
+
+| Cas | Statut HTTP | Réponse |
+|-----|-------------|---------|
+| Succès (liste vide ou non) | 200 | Tableau d’items `[{ "id": "<string>", "name": "<string>", "completed": <boolean> }, ...]` |
+| Erreur base de données | (non gérée par la route, comportement framework) | - |
+
+**Spec :** `spec/routes/getItems.spec.js`
