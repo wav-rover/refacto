@@ -38,4 +38,13 @@ describe("getItems", () => {
     expect(db.getItems).toHaveBeenCalledTimes(1);
     expect(res.send).toHaveBeenCalledWith([]);
   });
+  
+  test("does not send response when getItems rejects", async () => {
+    const req = {};
+    const res = createRes();
+    db.getItems.mockRejectedValue(new Error("DB error"));
+
+    await expect(getItems(req, res)).rejects.toThrow("DB error");
+    expect(res.send).not.toHaveBeenCalled();
+  });
 });
