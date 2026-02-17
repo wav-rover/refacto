@@ -1,4 +1,3 @@
-// tests/e2e/todo.spec.js
 const { test, expect } = require("@playwright/test");
 
 test.describe("Todo - flux principaux", () => {
