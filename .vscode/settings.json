@@ -10,5 +10,7 @@
   },
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "jest.jestCommandLine": "npm test --",
+  "jest.runMode": "watch"
 }

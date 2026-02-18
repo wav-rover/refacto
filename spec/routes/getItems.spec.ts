@@ -12,10 +12,11 @@ jest.mock("../../src/persistence", () => ({
   getItems: jest.fn(),
 }));
 
-const createRes = (): Response => ({
-  send: jest.fn(),
-  status: jest.fn().mockReturnThis(),
-} as unknown as Response);
+const createRes = (): Response =>
+  ({
+    send: jest.fn(),
+    status: jest.fn().mockReturnThis(),
+  }) as unknown as Response;
 
 describe("getItems", () => {
   beforeEach(() => {
