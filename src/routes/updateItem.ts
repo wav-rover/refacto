@@ -1,6 +1,7 @@
+import { Request, Response } from "express";
 const db = require("../persistence");
 
-module.exports = async (req, res) => {
+module.exports = async (req: Request, res: Response) => {
   const name = req.body?.name;
   if (!name || String(name).trim() === "") {
     res.status(400).send({ error: "Name is required" });
@@ -16,9 +17,11 @@ module.exports = async (req, res) => {
   }
 
   await db.updateItem(req.params.id, {
-    name: name.trim(),
+    name: String(name).trim(),
     completed,
   });
   const item = await db.getItem(req.params.id);
   res.send(item);
 };
+
+export {};

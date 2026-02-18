@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 const db = require("../../src/persistence");
 const updateItem = require("../../src/routes/updateItem");
 
@@ -6,10 +7,17 @@ jest.mock("../../src/persistence", () => ({
   updateItem: jest.fn(),
 }));
 
-const createRes = () => ({
-  send: jest.fn(),
-  status: jest.fn().mockReturnThis(),
-});
+interface Item {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
+const createRes = (): Response =>
+  ({
+    send: jest.fn(),
+    status: jest.fn().mockReturnThis(),
+  }) as unknown as Response;
 
 describe("updateItem", () => {
   beforeEach(() => {
@@ -18,11 +26,11 @@ describe("updateItem", () => {
 
   test("updates item with valid body and returns it", async () => {
     const id = "1234";
-    const updatedItem = { id, name: "New title", completed: false };
+    const updatedItem: Item = { id, name: "New title", completed: false };
     const req = {
       params: { id },
       body: { name: "New title", completed: false },
-    };
+    } as unknown as Request;
     const res = createRes();
 
     db.getItem.mockResolvedValue(updatedItem);
@@ -40,7 +48,7 @@ describe("updateItem", () => {
   });
 
   test("returns 400 when body has no name", async () => {
-    const req = { params: { id: "1234" }, body: {} };
+    const req = { params: { id: "1234" }, body: {} } as unknown as Request;
     const res = createRes();
 
     await updateItem(req, res);
@@ -54,7 +62,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "1234" },
       body: { name: "" },
-    };
+    } as unknown as Request;
     const res = createRes();
 
     await updateItem(req, res);
@@ -68,7 +76,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "1234" },
       body: { name: "   " },
-    };
+    } as unknown as Request;
     const res = createRes();
 
     await updateItem(req, res);
@@ -82,7 +90,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "unknown" },
       body: { name: "New title", completed: false },
-    };
+    } as unknown as Request;
     const res = createRes();
 
     db.getItem.mockResolvedValue(undefined);
@@ -96,3 +104,5 @@ describe("updateItem", () => {
     expect(res.send).toHaveBeenCalledWith({ error: "Item not found" });
   });
 });
+
+export {};
