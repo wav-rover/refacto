@@ -1,6 +1,7 @@
+import { Request, Response } from "express";
 const db = require("../persistence");
 
-module.exports = async (req, res) => {
+module.exports = async (req: Request, res: Response) => {
   const existing = await db.getItem(req.params.id);
   if (!existing) {
     res.status(404).send({ error: "Item not found" });
@@ -10,3 +11,5 @@ module.exports = async (req, res) => {
   await db.removeItem(req.params.id);
   res.sendStatus(200);
 };
+
+export {};

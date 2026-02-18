@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 const db = require("../../src/persistence");
 const deleteItem = require("../../src/routes/deleteItem");
 
@@ -6,11 +7,18 @@ jest.mock("../../src/persistence", () => ({
   removeItem: jest.fn(),
 }));
 
-const createRes = () => ({
-  sendStatus: jest.fn(),
-  status: jest.fn().mockReturnThis(),
-  send: jest.fn(),
-});
+interface Item {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
+const createRes = (): Response =>
+  ({
+    sendStatus: jest.fn(),
+    status: jest.fn().mockReturnThis(),
+    send: jest.fn(),
+  }) as unknown as Response;
 
 describe("deleteItem", () => {
   beforeEach(() => {
@@ -19,8 +27,8 @@ describe("deleteItem", () => {
 
   test("removes item when it exists and returns 200", async () => {
     const id = "1234";
-    const item = { id, name: "An item", completed: false };
-    const req = { params: { id } };
+    const item: Item = { id, name: "An item", completed: false };
+    const req = { params: { id } } as unknown as Request;
     const res = createRes();
 
     db.getItem.mockResolvedValue(item);
@@ -35,7 +43,7 @@ describe("deleteItem", () => {
   });
 
   test("returns 404 when item does not exist", async () => {
-    const req = { params: { id: "unknown" } };
+    const req = { params: { id: "unknown" } } as unknown as Request;
     const res = createRes();
 
     db.getItem.mockResolvedValue(undefined);
@@ -49,3 +57,5 @@ describe("deleteItem", () => {
     expect(res.send).toHaveBeenCalledWith({ error: "Item not found" });
   });
 });
+
+export {};
