@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react",
+    "strict": false,
+    "skipLibCheck": true,
+    "outDir": "dist/client",
+    "rootDir": "src/static/js",
+    "noEmit": false
+  },
+  "include": ["src/static/js/global.d.ts", "src/static/js/app.tsx"]
+}

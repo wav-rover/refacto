@@ -1,6 +1,5 @@
-declare const React: typeof import("react");
-declare const ReactDOM: typeof import("react-dom");
-declare const ReactBootstrap: typeof import("react-bootstrap");
+/// <reference path="./global.d.ts" />
+import type { FormEvent, ChangeEvent } from "react";
 
 interface Item {
   id: string;
@@ -26,8 +25,9 @@ function TodoListCard() {
 
   React.useEffect(() => {
     fetch("/items")
-      .then((r) => r.json())
-      .then((data: Item[]) => setItems(data));
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: Item[]) => setItems(data))
+      .catch(() => setItems([]));
   }, []);
 
   const onNewItem = React.useCallback(
@@ -89,7 +89,7 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
   const [newItem, setNewItem] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState<boolean>(false);
 
-  const submitNewItem = (e: React.FormEvent<HTMLFormElement>) => {
+  const submitNewItem = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     fetch("/items", {
@@ -110,7 +110,7 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
       <InputGroup className="mb-3">
         <Form.Control
           value={newItem}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
             setNewItem(e.target.value)
           }
           type="text"
@@ -134,6 +134,7 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
 
 interface ItemDisplayProps {
   item: Item;
+  key?: string;
   onItemUpdate: (item: Item) => void;
   onItemRemoval: (item: Item) => void;
 }
@@ -206,5 +207,5 @@ function ItemDisplay({
 
 const root = document.getElementById("root");
 if (root) {
-  ReactDOM.render(<App />, root);
+  (ReactDOM as unknown as { render: (el: unknown, container: Element) => void }).render(<App />, root);
 }

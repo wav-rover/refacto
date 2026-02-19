@@ -7,7 +7,8 @@
     "dev": "nodemon -L -r ts-node/register src/index.ts",
     "test": "jest",
     "test:e2e": "playwright test",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:all": "npm run test && npm run test:e2e",
+    "build:front": "esbuild src/frontend/app.tsx --bundle --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -21,6 +22,9 @@
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "esbuild": "^0.27.3",
     "jest": "^30.2.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.8.1",

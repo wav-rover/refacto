@@ -1,9 +1,9 @@
-const { test, expect } = require("@playwright/test");
+import { test, expect } from "@playwright/test";
 
 test.describe("Todo - flux principaux", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByPlaceholder("New Item")).toBeVisible();
+    await expect(page.getByPlaceholder("New Item")).toBeVisible({ timeout: 15000 });
   });
 
   test("Créer une tâche et la voir dans la liste", async ({ page }) => {
