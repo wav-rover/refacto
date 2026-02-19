@@ -1,3 +1,13 @@
+declare const React: typeof import("react");
+declare const ReactDOM: typeof import("react-dom");
+declare const ReactBootstrap: typeof import("react-bootstrap");
+
+interface Item {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
 function App() {
   const { Container, Row, Col } = ReactBootstrap;
   return (
@@ -12,35 +22,41 @@ function App() {
 }
 
 function TodoListCard() {
-  const [items, setItems] = React.useState(null);
+  const [items, setItems] = React.useState<Item[] | null>(null);
 
   React.useEffect(() => {
     fetch("/items")
       .then((r) => r.json())
-      .then(setItems);
+      .then((data: Item[]) => setItems(data));
   }, []);
 
   const onNewItem = React.useCallback(
-    (newItem) => {
-      setItems([...items, newItem]);
+    (newItem: Item) => {
+      setItems((prev) => (prev ? [...prev, newItem] : [newItem]));
     },
-    [items],
+    [],
   );
 
   const onItemUpdate = React.useCallback(
-    (item) => {
-      const index = items.findIndex((i) => i.id === item.id);
-      setItems([...items.slice(0, index), item, ...items.slice(index + 1)]);
+    (item: Item) => {
+      setItems((prev) => {
+        if (!prev) return prev;
+        const index = prev.findIndex((i) => i.id === item.id);
+        return [...prev.slice(0, index), item, ...prev.slice(index + 1)];
+      });
     },
-    [items],
+    [],
   );
 
   const onItemRemoval = React.useCallback(
-    (item) => {
-      const index = items.findIndex((i) => i.id === item.id);
-      setItems([...items.slice(0, index), ...items.slice(index + 1)]);
+    (item: Item) => {
+      setItems((prev) => {
+        if (!prev) return prev;
+        const index = prev.findIndex((i) => i.id === item.id);
+        return [...prev.slice(0, index), ...prev.slice(index + 1)];
+      });
     },
-    [items],
+    [],
   );
 
   if (items === null) return "Loading...";
@@ -63,13 +79,17 @@ function TodoListCard() {
   );
 }
 
-function AddItemForm({ onNewItem }) {
+interface AddItemFormProps {
+  onNewItem: (item: Item) => void;
+}
+
+function AddItemForm({ onNewItem }: AddItemFormProps) {
   const { Form, InputGroup, Button } = ReactBootstrap;
 
-  const [newItem, setNewItem] = React.useState("");
-  const [submitting, setSubmitting] = React.useState(false);
+  const [newItem, setNewItem] = React.useState<string>("");
+  const [submitting, setSubmitting] = React.useState<boolean>(false);
 
-  const submitNewItem = (e) => {
+  const submitNewItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     fetch("/items", {
@@ -78,7 +98,7 @@ function AddItemForm({ onNewItem }) {
       headers: { "Content-Type": "application/json" },
     })
       .then((r) => r.json())
-      .then((item) => {
+      .then((item: Item) => {
         onNewItem(item);
         setSubmitting(false);
         setNewItem("");
@@ -90,7 +110,9 @@ function AddItemForm({ onNewItem }) {
       <InputGroup className="mb-3">
         <Form.Control
           value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setNewItem(e.target.value)
+          }
           type="text"
           placeholder="New Item"
           aria-describedby="basic-addon1"
@@ -110,7 +132,17 @@ function AddItemForm({ onNewItem }) {
   );
 }
 
-function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
+interface ItemDisplayProps {
+  item: Item;
+  onItemUpdate: (item: Item) => void;
+  onItemRemoval: (item: Item) => void;
+}
+
+function ItemDisplay({
+  item,
+  onItemUpdate,
+  onItemRemoval,
+}: ItemDisplayProps) {
   const { Container, Row, Col, Button } = ReactBootstrap;
 
   const toggleCompletion = () => {
@@ -123,7 +155,7 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
       headers: { "Content-Type": "application/json" },
     })
       .then((r) => r.json())
-      .then(onItemUpdate);
+      .then((data: Item) => onItemUpdate(data));
   };
 
   const removeItem = () => {
@@ -133,7 +165,7 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
   };
 
   return (
-    <Container fluid className={`item ${item.completed && "completed"}`}>
+    <Container fluid className={`item ${item.completed ? "completed" : ""}`}>
       <Row>
         <Col xs={1} className="text-center">
           <Button
@@ -172,4 +204,7 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById("root"));
+const root = document.getElementById("root");
+if (root) {
+  ReactDOM.render(<App />, root);
+}
