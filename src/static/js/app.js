@@ -7,34 +7,27 @@
   function TodoListCard() {
     const [items, setItems] = React.useState(null);
     React.useEffect(() => {
-      fetch("/items").then((r) => r.ok ? r.json() : Promise.reject(new Error(String(r.status)))).then((data) => setItems(data)).catch(() => setItems([]));
+      fetch("/items").then(
+        (r) => r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+      ).then((data) => setItems(data)).catch(() => setItems([]));
     }, []);
-    const onNewItem = React.useCallback(
-      (newItem) => {
-        setItems((prev) => prev ? [...prev, newItem] : [newItem]);
-      },
-      []
-    );
-    const onItemUpdate = React.useCallback(
-      (item) => {
-        setItems((prev) => {
-          if (!prev) return prev;
-          const index = prev.findIndex((i) => i.id === item.id);
-          return [...prev.slice(0, index), item, ...prev.slice(index + 1)];
-        });
-      },
-      []
-    );
-    const onItemRemoval = React.useCallback(
-      (item) => {
-        setItems((prev) => {
-          if (!prev) return prev;
-          const index = prev.findIndex((i) => i.id === item.id);
-          return [...prev.slice(0, index), ...prev.slice(index + 1)];
-        });
-      },
-      []
-    );
+    const onNewItem = React.useCallback((newItem) => {
+      setItems((prev) => prev ? [...prev, newItem] : [newItem]);
+    }, []);
+    const onItemUpdate = React.useCallback((item) => {
+      setItems((prev) => {
+        if (!prev) return prev;
+        const index = prev.findIndex((i) => i.id === item.id);
+        return [...prev.slice(0, index), item, ...prev.slice(index + 1)];
+      });
+    }, []);
+    const onItemRemoval = React.useCallback((item) => {
+      setItems((prev) => {
+        if (!prev) return prev;
+        const index = prev.findIndex((i) => i.id === item.id);
+        return [...prev.slice(0, index), ...prev.slice(index + 1)];
+      });
+    }, []);
     if (items === null) return "Loading...";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(AddItemForm, { onNewItem }), items.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-center" }, "No items yet! Add one above!"), items.map((item) => /* @__PURE__ */ React.createElement(
       ItemDisplay,
@@ -83,11 +76,7 @@
       submitting ? "Adding..." : "Add Item"
     ))));
   }
-  function ItemDisplay({
-    item,
-    onItemUpdate,
-    onItemRemoval
-  }) {
+  function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
     const { Container, Row, Col, Button } = ReactBootstrap;
     const toggleCompletion = () => {
       fetch(`/items/${item.id}`, {
