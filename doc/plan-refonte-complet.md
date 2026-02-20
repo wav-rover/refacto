@@ -40,6 +40,8 @@
 
 ## 5. Hygiène du projet
 
+→ **Documentation détaillée :** [phase-5-hygiene-projet.md](./phase-5-hygiene-projet.md)
+
 - Gestion des dépendances :
   - Séparer :
     - « dependencies » → runtime
