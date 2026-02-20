@@ -1,4 +1,4 @@
-import type { FormEvent, ChangeEvent } from "react";
+import React, { type FormEvent, type ChangeEvent } from "react";
 
 interface Item {
   id: string;
@@ -24,39 +24,32 @@ function TodoListCard() {
 
   React.useEffect(() => {
     fetch("/items")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+      )
       .then((data: Item[]) => setItems(data))
       .catch(() => setItems([]));
   }, []);
 
-  const onNewItem = React.useCallback(
-    (newItem: Item) => {
-      setItems((prev) => (prev ? [...prev, newItem] : [newItem]));
-    },
-    [],
-  );
+  const onNewItem = React.useCallback((newItem: Item) => {
+    setItems((prev) => (prev ? [...prev, newItem] : [newItem]));
+  }, []);
 
-  const onItemUpdate = React.useCallback(
-    (item: Item) => {
-      setItems((prev) => {
-        if (!prev) return prev;
-        const index = prev.findIndex((i) => i.id === item.id);
-        return [...prev.slice(0, index), item, ...prev.slice(index + 1)];
-      });
-    },
-    [],
-  );
+  const onItemUpdate = React.useCallback((item: Item) => {
+    setItems((prev) => {
+      if (!prev) return prev;
+      const index = prev.findIndex((i) => i.id === item.id);
+      return [...prev.slice(0, index), item, ...prev.slice(index + 1)];
+    });
+  }, []);
 
-  const onItemRemoval = React.useCallback(
-    (item: Item) => {
-      setItems((prev) => {
-        if (!prev) return prev;
-        const index = prev.findIndex((i) => i.id === item.id);
-        return [...prev.slice(0, index), ...prev.slice(index + 1)];
-      });
-    },
-    [],
-  );
+  const onItemRemoval = React.useCallback((item: Item) => {
+    setItems((prev) => {
+      if (!prev) return prev;
+      const index = prev.findIndex((i) => i.id === item.id);
+      return [...prev.slice(0, index), ...prev.slice(index + 1)];
+    });
+  }, []);
 
   if (items === null) return "Loading...";
 
@@ -138,11 +131,7 @@ interface ItemDisplayProps {
   onItemRemoval: (item: Item) => void;
 }
 
-function ItemDisplay({
-  item,
-  onItemUpdate,
-  onItemRemoval,
-}: ItemDisplayProps) {
+function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
   const { Container, Row, Col, Button } = ReactBootstrap;
 
   const toggleCompletion = () => {
@@ -160,7 +149,7 @@ function ItemDisplay({
 
   const removeItem = () => {
     fetch(`/items/${item.id}`, { method: "DELETE" }).then(() =>
-      onItemRemoval(item),
+      onItemRemoval(item)
     );
   };
 
@@ -206,5 +195,7 @@ function ItemDisplay({
 
 const root = document.getElementById("root");
 if (root) {
-  (ReactDOM as unknown as { render: (el: unknown, container: Element) => void }).render(<App />, root);
+  (
+    ReactDOM as unknown as { render: (el: unknown, container: Element) => void }
+  ).render(<App />, root);
 }

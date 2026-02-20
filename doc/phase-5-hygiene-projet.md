@@ -56,12 +56,7 @@ Une phase d’hygiène **sans refactoring métier** : on configure les outils et
 
 2. Créer ou compléter la configuration ESLint
 
-3. Ajouter un script dans `package.json` :
-
-   ```json
-   "lint": "eslint src spec --ext .ts,.tsx"
-   ```
-
+3. Ajouter un script dans `package.json`
 4. Exécuter `npm run lint` et corriger les erreurs bloquantes (ou les désactiver explicitement avec justification documentée).
 
 **Livrable :** ESLint configuré, script `npm run lint` exécutable, pas d’erreurs bloquantes non traitées.
@@ -72,7 +67,7 @@ Une phase d’hygiène **sans refactoring métier** : on configure les outils et
 
 1. Installer dependency-cruiser
 
-2. Initialiser la config (ou créer manuellement) 
+2. Initialiser la config (ou créer manuellement)
 
 3. Définir les règles d’architecture dans le fichier de config (ex. `.dependency-cruiser.cjs` ou `dependency-cruiser.js`)
 
