@@ -1,4 +1,3 @@
-/// <reference path="./global.d.ts" />
 import type { FormEvent, ChangeEvent } from "react";
 
 interface Item {
