@@ -9,7 +9,7 @@ Une seule personne sur cette phase : **Tristan**. Pas de répartition par périm
 ## Prérequis
 
 - **Phase 3 validée** : tous les tests verts (`npm test`, `npm run test:e2e`), `npx tsc --noEmit` sans erreur bloquante, application fonctionnelle.
-- **Version Node actuelle** : à documenter avant mise à jour (ex. `node -v`). À noter dans ce fichier ou en section dédiée pour traçabilité.
+- **Versions Node et traçabilité** : documentées dans [phase-4-documentation.md](./phase-4-documentation.md).
 
 ---
 
