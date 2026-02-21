@@ -1,6 +1,6 @@
 # Plan de refonte complet
 
-**Où on en est :** juste avant _Introduction de TypeScript_.
+**Où on en est :** Phase 5 terminée (hygiène du projet). Prêt pour la phase 6
 
 ---
 
