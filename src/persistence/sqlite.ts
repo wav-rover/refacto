@@ -1,13 +1,8 @@
 const sqlite3 = require("sqlite3").verbose();
 const fs = require("fs");
+import type { Item, ItemRepository } from "../ports/itemRepository";
 
 const location = process.env.SQLITE_DB_LOCATION || "/etc/todos/todo.db";
-
-interface Item {
-  id: string;
-  name: string;
-  completed: boolean;
-}
 
 interface ItemRow {
   id: string;
@@ -123,7 +118,7 @@ async function removeItem(id: string): Promise<void> {
   });
 }
 
-module.exports = {
+const sqliteRepository: ItemRepository = {
   init,
   teardown,
   getItems,
@@ -133,4 +128,5 @@ module.exports = {
   removeItem,
 };
 
-export {};
+export default sqliteRepository;
+module.exports = sqliteRepository;
