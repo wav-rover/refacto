@@ -12,7 +12,7 @@
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
     "lint": "eslint src spec",
-    "lint:deps": "depcruise src spec --config",
+    "lint:deps": "npx dependency-cruiser src spec --config",
     "build:front": "esbuild src/frontend/app.tsx --bundle --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {

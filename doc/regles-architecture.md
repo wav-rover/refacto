@@ -29,3 +29,40 @@ Le domaine doit rester **pur** et ne pas dépendre directement des couches d'inf
 
 - La règle est appliquée par **dependency-cruiser** via le script `npm run lint:deps`.
 - En phase 5, aucun refactoring métier n'est réalisé. Si le dossier `src/domain` n'existe pas encore, la règle ne s'applique à aucun fichier et est prête pour la phase 6.
+
+---
+
+## Règle : pas de sqlite3 dans les tests (Phase 6)
+
+### Périmètre
+
+Les fichiers de **tests unitaires**, c'est-à-dire les modules sous `spec/`.
+
+### Interdit
+
+Les tests ne doivent **pas** importer :
+
+- **sqlite3** : driver SQLite (via `node_modules/sqlite3`)
+- **src/persistence/sqlite** : implémentation SQLite du repository
+
+### Objectif
+
+En environnement de test (`NODE_ENV=test`), seule l'implémentation **InMemoryRepository** doit être utilisée. Cela garantit :
+
+- Des tests rapides et sans dépendance externe (pas de fichier DB)
+- Une isolation complète de l'infrastructure
+- La possibilité de mocker facilement le repository
+
+### Application
+
+- La règle `no-sqlite-in-tests` est définie dans `.dependency-cruiser.js`.
+- Elle est vérifiée via le script `npm run lint:deps`.
+- Toute tentative d'importer `sqlite3` ou `src/persistence/sqlite` depuis un fichier sous `spec/` provoquera une erreur bloquante.
+
+### Exécution en CI
+
+```bash
+npm run lint:deps
+```
+
+Cette commande doit être exécutée dans la CI pour bloquer toute régression (réintroduction de sqlite3 dans les tests).

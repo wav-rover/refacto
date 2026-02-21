@@ -18,6 +18,17 @@ module.exports = {
       },
     },
     {
+      name: "no-sqlite-in-tests",
+      severity: "error",
+      comment:
+        "Les tests (spec/) ne doivent pas importer sqlite3 ni src/persistence/sqlite. " +
+        "En environnement de test, seule l'implémentation InMemoryRepository doit être utilisée.",
+      from: { path: "^spec/" },
+      to: {
+        path: ["^node_modules/sqlite3", "^src/persistence/sqlite"],
+      },
+    },
+    {
       name: "no-circular",
       severity: "warn",
       comment:
