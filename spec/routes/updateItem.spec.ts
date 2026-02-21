@@ -1,17 +1,21 @@
-import { Request, Response } from "express";
-const db = require("../../src/persistence");
+import type { Request, Response } from "express";
 const updateItem = require("../../src/routes/updateItem");
-
-jest.mock("../../src/persistence", () => ({
-  getItem: jest.fn(),
-  updateItem: jest.fn(),
-}));
 
 interface Item {
   id: string;
   name: string;
   completed: boolean;
 }
+
+const createMockRepo = () => ({
+  init: jest.fn(),
+  teardown: jest.fn(),
+  getItems: jest.fn(),
+  getItem: jest.fn(),
+  storeItem: jest.fn(),
+  updateItem: jest.fn(),
+  removeItem: jest.fn(),
+});
 
 const createRes = (): Response =>
   ({
@@ -20,6 +24,8 @@ const createRes = (): Response =>
   }) as unknown as Response;
 
 describe("updateItem", () => {
+  const mockRepo = createMockRepo();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -33,17 +39,18 @@ describe("updateItem", () => {
     } as unknown as Request;
     const res = createRes();
 
-    db.getItem.mockResolvedValue(updatedItem);
+    mockRepo.getItem.mockResolvedValue(updatedItem);
 
-    await updateItem(req, res);
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
 
-    expect(db.getItem).toHaveBeenCalledWith(id);
-    expect(db.updateItem).toHaveBeenCalledTimes(1);
-    expect(db.updateItem).toHaveBeenCalledWith(id, {
+    expect(mockRepo.getItem).toHaveBeenCalledWith(id);
+    expect(mockRepo.updateItem).toHaveBeenCalledTimes(1);
+    expect(mockRepo.updateItem).toHaveBeenCalledWith(id, {
       name: "New title",
       completed: false,
     });
-    expect(db.getItem).toHaveBeenCalledTimes(2);
+    expect(mockRepo.getItem).toHaveBeenCalledTimes(2);
     expect(res.send).toHaveBeenCalledWith(updatedItem);
   });
 
@@ -51,11 +58,12 @@ describe("updateItem", () => {
     const req = { params: { id: "1234" }, body: {} } as unknown as Request;
     const res = createRes();
 
-    await updateItem(req, res);
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.updateItem).not.toHaveBeenCalled();
+    expect(mockRepo.updateItem).not.toHaveBeenCalled();
   });
 
   test("returns 400 when name is empty string", async () => {
@@ -65,11 +73,12 @@ describe("updateItem", () => {
     } as unknown as Request;
     const res = createRes();
 
-    await updateItem(req, res);
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.updateItem).not.toHaveBeenCalled();
+    expect(mockRepo.updateItem).not.toHaveBeenCalled();
   });
 
   test("returns 400 when name is only whitespace", async () => {
@@ -79,11 +88,12 @@ describe("updateItem", () => {
     } as unknown as Request;
     const res = createRes();
 
-    await updateItem(req, res);
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.updateItem).not.toHaveBeenCalled();
+    expect(mockRepo.updateItem).not.toHaveBeenCalled();
   });
 
   test("returns 404 when item does not exist", async () => {
@@ -93,13 +103,14 @@ describe("updateItem", () => {
     } as unknown as Request;
     const res = createRes();
 
-    db.getItem.mockResolvedValue(undefined);
+    mockRepo.getItem.mockResolvedValue(undefined);
 
-    await updateItem(req, res);
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
 
-    expect(db.getItem).toHaveBeenCalledTimes(1);
-    expect(db.getItem).toHaveBeenCalledWith("unknown");
-    expect(db.updateItem).not.toHaveBeenCalled();
+    expect(mockRepo.getItem).toHaveBeenCalledTimes(1);
+    expect(mockRepo.getItem).toHaveBeenCalledWith("unknown");
+    expect(mockRepo.updateItem).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.send).toHaveBeenCalledWith({ error: "Item not found" });
   });

@@ -1,27 +1,31 @@
-import { Request, Response } from "express";
-const db = require("../persistence");
+import type { Request, Response } from "express";
+import type { ItemRepository } from "../ports/itemRepository";
 
-module.exports = async (req: Request, res: Response) => {
-  const name = req.body?.name;
-  if (!name || String(name).trim() === "") {
-    res.status(400).send({ error: "Name is required" });
-    return;
-  }
+function updateItem(repo: ItemRepository) {
+  return async (req: Request, res: Response): Promise<void> => {
+    const id = String(req.params.id);
+    const name = req.body?.name;
+    if (!name || String(name).trim() === "") {
+      res.status(400).send({ error: "Name is required" });
+      return;
+    }
 
-  const completed = req.body?.completed ?? false;
+    const completed = req.body?.completed ?? false;
 
-  const existing = await db.getItem(req.params.id);
-  if (!existing) {
-    res.status(404).send({ error: "Item not found" });
-    return;
-  }
+    const existing = await repo.getItem(id);
+    if (!existing) {
+      res.status(404).send({ error: "Item not found" });
+      return;
+    }
 
-  await db.updateItem(req.params.id, {
-    name: String(name).trim(),
-    completed,
-  });
-  const item = await db.getItem(req.params.id);
-  res.send(item);
-};
+    await repo.updateItem(id, {
+      name: String(name).trim(),
+      completed,
+    });
+    const item = await repo.getItem(id);
+    res.send(item);
+  };
+}
 
-export {};
+export default updateItem;
+module.exports = updateItem;
