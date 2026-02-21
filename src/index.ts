@@ -14,7 +14,7 @@ app.use(express.static(__dirname + "/static"));
 app.get("/items", getItems(repo));
 app.post("/items", addItem(repo));
 app.put("/items/:id", updateItem(repo));
-app.delete("/items/:id", deleteItem);
+app.delete("/items/:id", deleteItem(repo));
 
 repo
   .init()

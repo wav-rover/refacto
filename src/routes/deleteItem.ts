@@ -1,15 +1,19 @@
-import { Request, Response } from "express";
-const db = require("../persistence");
+import type { Request, Response } from "express";
+import type { ItemRepository } from "../ports/itemRepository";
 
-module.exports = async (req: Request, res: Response) => {
-  const existing = await db.getItem(req.params.id);
-  if (!existing) {
-    res.status(404).send({ error: "Item not found" });
-    return;
-  }
+function deleteItem(repo: ItemRepository) {
+  return async (req: Request, res: Response): Promise<void> => {
+    const id = String(req.params.id);
+    const existing = await repo.getItem(id);
+    if (!existing) {
+      res.status(404).send({ error: "Item not found" });
+      return;
+    }
 
-  await db.removeItem(req.params.id);
-  res.sendStatus(200);
-};
+    await repo.removeItem(id);
+    res.sendStatus(200);
+  };
+}
 
-export {};
+export default deleteItem;
+module.exports = deleteItem;
