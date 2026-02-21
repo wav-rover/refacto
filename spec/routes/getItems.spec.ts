@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-const db = require("../../src/persistence");
-const getItems = require("../../src/routes/getItems");
+import type { Request, Response } from "express";
+import getItems from "../../src/routes/getItems";
+import type { ItemRepository } from "../../src/ports/itemRepository";
 
 interface Item {
   id: string;
@@ -8,9 +8,15 @@ interface Item {
   completed: boolean;
 }
 
-jest.mock("../../src/persistence", () => ({
+const createMockRepo = (): jest.Mocked<ItemRepository> => ({
+  init: jest.fn().mockResolvedValue(undefined),
+  teardown: jest.fn().mockResolvedValue(undefined),
   getItems: jest.fn(),
-}));
+  getItem: jest.fn(),
+  storeItem: jest.fn(),
+  updateItem: jest.fn(),
+  removeItem: jest.fn(),
+});
 
 const createRes = (): Response =>
   ({
@@ -27,33 +33,37 @@ describe("getItems", () => {
     const ITEMS: Item[] = [{ id: "12345", name: "item", completed: false }];
     const req = {} as Request;
     const res = createRes();
-    db.getItems.mockResolvedValue(ITEMS);
+    const mockRepo = createMockRepo();
+    mockRepo.getItems.mockResolvedValue(ITEMS);
 
-    await getItems(req, res);
+    const handler = getItems(mockRepo);
+    await handler(req, res);
 
-    expect(db.getItems).toHaveBeenCalledTimes(1);
+    expect(mockRepo.getItems).toHaveBeenCalledTimes(1);
     expect(res.send).toHaveBeenCalledWith(ITEMS);
   });
 
   test("returns empty array when no items", async () => {
     const req = {} as Request;
     const res = createRes();
-    db.getItems.mockResolvedValue([]);
+    const mockRepo = createMockRepo();
+    mockRepo.getItems.mockResolvedValue([]);
 
-    await getItems(req, res);
+    const handler = getItems(mockRepo);
+    await handler(req, res);
 
-    expect(db.getItems).toHaveBeenCalledTimes(1);
+    expect(mockRepo.getItems).toHaveBeenCalledTimes(1);
     expect(res.send).toHaveBeenCalledWith([]);
   });
 
   test("does not send response when getItems rejects", async () => {
     const req = {} as Request;
     const res = createRes();
-    db.getItems.mockRejectedValue(new Error("DB error"));
+    const mockRepo = createMockRepo();
+    mockRepo.getItems.mockRejectedValue(new Error("DB error"));
 
-    await expect(getItems(req, res)).rejects.toThrow("DB error");
+    const handler = getItems(mockRepo);
+    await expect(handler(req, res)).rejects.toThrow("DB error");
     expect(res.send).not.toHaveBeenCalled();
   });
 });
-
-export {};

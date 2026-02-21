@@ -1,9 +1,12 @@
-import { Request, Response } from "express";
-const db = require("../persistence");
+import type { Request, Response } from "express";
+import type { ItemRepository } from "../ports/itemRepository";
 
-module.exports = async (req: Request, res: Response) => {
-  const items = await db.getItems();
-  res.send(items);
-};
+function getItems(repo: ItemRepository) {
+  return async (req: Request, res: Response): Promise<void> => {
+    const items = await repo.getItems();
+    res.send(items);
+  };
+}
 
-export {};
+export default getItems;
+module.exports = getItems;
