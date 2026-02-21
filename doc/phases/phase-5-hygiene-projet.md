@@ -78,7 +78,7 @@ Une phase d’hygiène **sans refactoring métier** : on configure les outils et
 - Dans la config dependency-cruiser, ajouter une règle du type :
   - **Périmètre** : modules du domaine (ex. `src/domain`, ou dossiers sans couche infrastructure).
   - **Interdit** : imports depuis `mysql2`, `sqlite3`, `express`, ou tout module d’infrastructure (DB, HTTP, etc.).
-- Documenter la règle dans ce fichier ou dans un fichier dédié (ex. `doc/regles-architecture.md`).
+- Documenter la règle dans ce fichier ou dans un fichier dédié (ex. `doc/architecture/regles-architecture.md`).
 
 **Livrable :** règle explicite « pas de DB / infra dans le domaine », appliquée par dependency-cruiser et documentée.
 

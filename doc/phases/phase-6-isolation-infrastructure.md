@@ -10,7 +10,7 @@ Chacun travaille sur son périmètre. Ordre recommandé : Tristan → Jeremy →
 
 ## Prérequis
 
-- **Phase 5 validée** : ESLint, dependency-cruiser, dépendances séparées (dependencies / devDependencies). Fichiers en place : `eslint.config.js`, `.dependency-cruiser.js`, `doc/regles-architecture.md` ; scripts : `npm run lint`, `npm run lint:deps`.
+- **Phase 5 validée** : ESLint, dependency-cruiser, dépendances séparées (dependencies / devDependencies). Fichiers en place : `eslint.config.js`, `.dependency-cruiser.js`, `doc/architecture/regles-architecture.md` ; scripts : `npm run lint`, `npm run lint:deps`.
 - **Vérification obligatoire avant démarrage** (tout doit passer) :
   - `npm run lint`
   - `npm run lint:deps`
@@ -84,7 +84,7 @@ Chacun travaille sur son périmètre. Ordre recommandé : Tristan → Jeremy →
    - **Option B** : Test Jest qui échoue si du code chargé en `NODE_ENV=test` requiert `sqlite3` (ex. vérifier qu'aucun module sous spec n'importe sqlite3).
 
 2. **Documentation**  
-   Indiquer ici comment la règle ou le test est exécuté : **`npm run lint:deps`** (déjà défini en phase 5) pour l'option A, ou un script dédié pour l'option B. Toute régression (réintroduction de sqlite3 en test) doit rester bloquée. Mettre à jour `doc/regles-architecture.md` si une nouvelle règle dependency-cruiser est ajoutée.
+   Indiquer ici comment la règle ou le test est exécuté : **`npm run lint:deps`** (déjà défini en phase 5) pour l'option A, ou un script dédié pour l'option B. Toute régression (réintroduction de sqlite3 en test) doit rester bloquée. Mettre à jour `doc/architecture/regles-architecture.md` si une nouvelle règle dependency-cruiser est ajoutée.
 
 **Livrable :** test ou règle appliqué, documenté, et exécutable en CI.
 

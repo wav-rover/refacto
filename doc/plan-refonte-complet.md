@@ -1,6 +1,6 @@
 # Plan de refonte complet
 
-**Où on en est :** Phase 5 terminée (hygiène du projet). Prêt pour la phase 6
+**Où on en est :** Phase 6 terminée. Prêt pour la phase 7
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## 5. Hygiène du projet
 
-→ **Documentation détaillée :** [phase-5-hygiene-projet.md](./phase-5-hygiene-projet.md)
+→ **Documentation détaillée :** [phase-5-hygiene-projet.md](./phases/phase-5-hygiene-projet.md)
 
 - Gestion des dépendances :
   - Séparer :
