@@ -1,21 +1,24 @@
-import { Request, Response } from "express";
-const db = require("../../src/persistence");
+import type { Request, Response } from "express";
 const addItem = require("../../src/routes/addItem");
 const { v4: uuid } = require("uuid");
 
 jest.mock("uuid", () => ({ v4: jest.fn() }));
-
-jest.mock("../../src/persistence", () => ({
-  removeItem: jest.fn(),
-  storeItem: jest.fn(),
-  getItem: jest.fn(),
-}));
 
 interface Item {
   id: string;
   name: string;
   completed: boolean;
 }
+
+const createMockRepo = () => ({
+  init: jest.fn(),
+  teardown: jest.fn(),
+  getItems: jest.fn(),
+  getItem: jest.fn(),
+  storeItem: jest.fn(),
+  updateItem: jest.fn(),
+  removeItem: jest.fn(),
+});
 
 const createRes = (): Response =>
   ({
@@ -24,6 +27,8 @@ const createRes = (): Response =>
   }) as unknown as Response;
 
 describe("addItem", () => {
+  const mockRepo = createMockRepo();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -36,12 +41,13 @@ describe("addItem", () => {
 
     (uuid as jest.Mock).mockReturnValue(id);
 
-    await addItem(req, res);
+    const handler = addItem(mockRepo);
+    await handler(req, res);
 
     const expectedItem: Item = { id, name, completed: false };
 
-    expect(db.storeItem).toHaveBeenCalledTimes(1);
-    expect(db.storeItem).toHaveBeenCalledWith(expectedItem);
+    expect(mockRepo.storeItem).toHaveBeenCalledTimes(1);
+    expect(mockRepo.storeItem).toHaveBeenCalledWith(expectedItem);
     expect(res.send).toHaveBeenCalledWith(expectedItem);
   });
 
@@ -49,33 +55,36 @@ describe("addItem", () => {
     const req = { body: {} } as Request;
     const res = createRes();
 
-    await addItem(req, res);
+    const handler = addItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.storeItem).not.toHaveBeenCalled();
+    expect(mockRepo.storeItem).not.toHaveBeenCalled();
   });
 
   test("returns 400 when name is empty string", async () => {
     const req = { body: { name: "" } } as Request;
     const res = createRes();
 
-    await addItem(req, res);
+    const handler = addItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.storeItem).not.toHaveBeenCalled();
+    expect(mockRepo.storeItem).not.toHaveBeenCalled();
   });
 
   test("returns 400 when name is only whitespace", async () => {
     const req = { body: { name: "   " } } as Request;
     const res = createRes();
 
-    await addItem(req, res);
+    const handler = addItem(mockRepo);
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(db.storeItem).not.toHaveBeenCalled();
+    expect(mockRepo.storeItem).not.toHaveBeenCalled();
   });
 });
 

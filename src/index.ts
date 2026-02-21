@@ -1,20 +1,23 @@
 const express = require("express");
 const app = express();
-const db = require("./persistence");
+const { createRepository } = require("./persistence");
 const getItems = require("./routes/getItems");
 const addItem = require("./routes/addItem");
 const updateItem = require("./routes/updateItem");
 const deleteItem = require("./routes/deleteItem");
 
+const repo = createRepository();
+
 app.use(express.json());
 app.use(express.static(__dirname + "/static"));
 
-app.get("/items", getItems);
-app.post("/items", addItem);
+app.get("/items", getItems(repo));
+app.post("/items", addItem(repo));
 app.put("/items/:id", updateItem);
 app.delete("/items/:id", deleteItem);
 
-db.init()
+repo
+  .init()
   .then(() => {
     app.listen(3000, () => console.log("Listening on port 3000"));
   })
@@ -24,7 +27,8 @@ db.init()
   });
 
 const gracefulShutdown = () => {
-  db.teardown()
+  repo
+    .teardown()
     .catch(() => {})
     .then(() => process.exit());
 };
