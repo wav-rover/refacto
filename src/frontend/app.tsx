@@ -1,9 +1,15 @@
 import React, { type FormEvent, type ChangeEvent } from "react";
 
+type ItemStatus = "todo" | "in_progress" | "done";
+type ItemPriority = "low" | "medium" | "high";
+
 interface Item {
   id: string;
   name: string;
   completed: boolean;
+  status: ItemStatus;
+  priority: ItemPriority;
+  dueDate: string | null;
 }
 
 function App() {
@@ -25,7 +31,7 @@ function TodoListCard() {
   React.useEffect(() => {
     fetch("/items")
       .then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+        r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
       )
       .then((data: Item[]) => setItems(data))
       .catch(() => setItems([]));
@@ -149,7 +155,7 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
 
   const removeItem = () => {
     fetch(`/items/${item.id}`, { method: "DELETE" }).then(() =>
-      onItemRemoval(item)
+      onItemRemoval(item),
     );
   };
 
