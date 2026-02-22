@@ -1051,20 +1051,31 @@
     )));
   }
   function AddItemForm({ onNewItem }) {
-    const { Form, InputGroup, Button } = ReactBootstrap;
+    const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
     const [newItem, setNewItem] = import_react.default.useState("");
+    const [status, setStatus] = import_react.default.useState("todo");
+    const [priority, setPriority] = import_react.default.useState("medium");
+    const [dueDate, setDueDate] = import_react.default.useState("");
     const [submitting, setSubmitting] = import_react.default.useState(false);
     const submitNewItem = (e) => {
       e.preventDefault();
       setSubmitting(true);
       fetch("/items", {
         method: "POST",
-        body: JSON.stringify({ name: newItem }),
+        body: JSON.stringify({
+          name: newItem.trim(),
+          status,
+          priority,
+          dueDate: dueDate.trim() || null
+        }),
         headers: { "Content-Type": "application/json" }
       }).then((r) => r.json()).then((item) => {
         onNewItem(item);
         setSubmitting(false);
         setNewItem("");
+        setStatus("todo");
+        setPriority("medium");
+        setDueDate("");
       });
     };
     return /* @__PURE__ */ import_react.default.createElement(Form, { onSubmit: submitNewItem }, /* @__PURE__ */ import_react.default.createElement(InputGroup, { className: "mb-3" }, /* @__PURE__ */ import_react.default.createElement(
@@ -1085,7 +1096,40 @@
         className: submitting ? "disabled" : ""
       },
       submitting ? "Adding..." : "Add Item"
-    ))));
+    ))), /* @__PURE__ */ import_react.default.createElement(Row, { className: "mb-3" }, /* @__PURE__ */ import_react.default.createElement(Col, { xs: 4 }, /* @__PURE__ */ import_react.default.createElement(Form.Group, null, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: "add-status" }, "Statut"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: "add-status",
+        as: "select",
+        value: status,
+        onChange: (e) => setStatus(e.target.value),
+        "aria-label": "Statut"
+      },
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "todo" }, "\xC0 faire"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "in_progress" }, "En cours"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "done" }, "Termin\xE9")
+    ))), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 4 }, /* @__PURE__ */ import_react.default.createElement(Form.Group, null, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: "add-priority" }, "Priorit\xE9"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: "add-priority",
+        as: "select",
+        value: priority,
+        onChange: (e) => setPriority(e.target.value),
+        "aria-label": "Priorit\xE9"
+      },
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "low" }, "Basse"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "medium" }, "Moyenne"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "high" }, "Haute")
+    ))), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 4 }, /* @__PURE__ */ import_react.default.createElement(Form.Group, null, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: "add-dueDate" }, "Date d'\xE9ch\xE9ance"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: "add-dueDate",
+        type: "date",
+        value: dueDate,
+        onChange: (e) => setDueDate(e.target.value),
+        "aria-label": "Date d'\xE9ch\xE9ance"
+      }
+    )))));
   }
   function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
     const { Container, Row, Col, Button } = ReactBootstrap;

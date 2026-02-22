@@ -82,9 +82,12 @@ interface AddItemFormProps {
 }
 
 function AddItemForm({ onNewItem }: AddItemFormProps) {
-  const { Form, InputGroup, Button } = ReactBootstrap;
+  const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
 
   const [newItem, setNewItem] = React.useState<string>("");
+  const [status, setStatus] = React.useState<ItemStatus>("todo");
+  const [priority, setPriority] = React.useState<ItemPriority>("medium");
+  const [dueDate, setDueDate] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState<boolean>(false);
 
   const submitNewItem = (e: FormEvent<HTMLFormElement>) => {
@@ -92,7 +95,12 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
     setSubmitting(true);
     fetch("/items", {
       method: "POST",
-      body: JSON.stringify({ name: newItem }),
+      body: JSON.stringify({
+        name: newItem.trim(),
+        status,
+        priority,
+        dueDate: dueDate.trim() || null,
+      }),
       headers: { "Content-Type": "application/json" },
     })
       .then((r) => r.json())
@@ -100,6 +108,9 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
         onNewItem(item);
         setSubmitting(false);
         setNewItem("");
+        setStatus("todo");
+        setPriority("medium");
+        setDueDate("");
       });
   };
 
@@ -126,6 +137,58 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
           </Button>
         </InputGroup.Append>
       </InputGroup>
+      <Row className="mb-3">
+        <Col xs={4}>
+          <Form.Group>
+            <Form.Label htmlFor="add-status">Statut</Form.Label>
+            <Form.Control
+              id="add-status"
+              as="select"
+              value={status}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setStatus(e.target.value as ItemStatus)
+              }
+              aria-label="Statut"
+            >
+              <option value="todo">À faire</option>
+              <option value="in_progress">En cours</option>
+              <option value="done">Terminé</option>
+            </Form.Control>
+          </Form.Group>
+        </Col>
+        <Col xs={4}>
+          <Form.Group>
+            <Form.Label htmlFor="add-priority">Priorité</Form.Label>
+            <Form.Control
+              id="add-priority"
+              as="select"
+              value={priority}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setPriority(e.target.value as ItemPriority)
+              }
+              aria-label="Priorité"
+            >
+              <option value="low">Basse</option>
+              <option value="medium">Moyenne</option>
+              <option value="high">Haute</option>
+            </Form.Control>
+          </Form.Group>
+        </Col>
+        <Col xs={4}>
+          <Form.Group>
+            <Form.Label htmlFor="add-dueDate">Date d&apos;échéance</Form.Label>
+            <Form.Control
+              id="add-dueDate"
+              type="date"
+              value={dueDate}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setDueDate(e.target.value)
+              }
+              aria-label="Date d'échéance"
+            />
+          </Form.Group>
+        </Col>
+      </Row>
     </Form>
   );
 }
