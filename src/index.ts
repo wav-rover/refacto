@@ -20,7 +20,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true },
-  })
+  }),
 );
 app.use(express.static(__dirname + "/static"));
 

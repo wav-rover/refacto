@@ -7,15 +7,16 @@
     "node": ">=24.13.1"
   },
   "scripts": {
-    "dev": "nodemon -L -r ts-node/register src/index.ts",
+    "dev": "nodemon -L -r dotenv/config -r ts-node/register src/index.ts",
     "test": "jest",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
     "lint": "eslint src spec",
     "lint:deps": "npx dependency-cruiser src spec --config",
-    "build:front": "esbuild src/frontend/app.tsx --bundle --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
+    "build:front": "esbuild src/frontend/app.tsx --bundle --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts --external:react --external:react-dom"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mysql2": "^3.16.1",

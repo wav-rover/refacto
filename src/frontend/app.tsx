@@ -1,4 +1,6 @@
-import React, { type FormEvent, type ChangeEvent } from "react";
+/// <reference types="react" />
+type FormEvent<T> = React.FormEvent<T>;
+type ChangeEvent<T> = React.ChangeEvent<T>;
 
 type ItemStatus = "todo" | "in_progress" | "done";
 type ItemPriority = "low" | "medium" | "high";
