@@ -81,6 +81,7 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       ...process.env,
+      NODE_ENV: "test",
       AUTH_USERNAME: "admin",
       AUTH_PASSWORD: "secret",
       SESSION_SECRET: "test-session-secret",
