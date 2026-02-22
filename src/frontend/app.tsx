@@ -1,13 +1,21 @@
-/// <reference types="react" />
-import { Status, Priority, Item } from '../ports/itemRepository';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import {
+  Container,
+  Row,
+  Col,
+  Button,
+  Alert,
+  Form,
+  InputGroup,
+} from "react-bootstrap";
+import { Status, Priority, Item } from "../ports/itemRepository";
 
-type FormEvent<T> = React.FormEvent<T>;
 type ChangeEvent<T> = React.ChangeEvent<T>;
 
 type AuthState = "checking" | "logged_out" | "logged_in";
 
 function App() {
-  const { Container, Row, Col, Button, Alert } = ReactBootstrap;
   const [authState, setAuthState] = React.useState<AuthState>("checking");
   const [authError, setAuthError] = React.useState<string | null>(null);
 
@@ -83,7 +91,11 @@ function App() {
       <Row>
         <Col md={{ offset: 3, span: 6 }}>
           <div className="d-flex justify-content-end mb-3 mt-3">
-            <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={handleLogout}
+            >
               Déconnexion
             </Button>
           </div>
@@ -99,12 +111,11 @@ interface LoginFormProps {
 }
 
 function LoginForm({ onLogin }: LoginFormProps) {
-  const { Form, Button } = ReactBootstrap;
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     onLogin(username, password);
@@ -120,7 +131,9 @@ function LoginForm({ onLogin }: LoginFormProps) {
           type="text"
           placeholder="Nom d'utilisateur"
           value={username}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            setUsername(e.target.value)
+          }
           required
           aria-label="Nom d'utilisateur"
         />
@@ -132,7 +145,9 @@ function LoginForm({ onLogin }: LoginFormProps) {
           type="password"
           placeholder="Mot de passe"
           value={password}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            setPassword(e.target.value)
+          }
           required
           aria-label="Mot de passe"
         />
@@ -221,15 +236,13 @@ interface AddItemFormProps {
 }
 
 function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
-  const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
-
   const [newItem, setNewItem] = React.useState<string>("");
   const [status, setStatus] = React.useState<Status>(Status.Todo);
   const [priority, setPriority] = React.useState<Priority>(Priority.Medium);
   const [dueDate, setDueDate] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState<boolean>(false);
 
-  const submitNewItem = (e: FormEvent<HTMLFormElement>) => {
+  const submitNewItem = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     fetch("/items", {
@@ -253,8 +266,8 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
         onNewItem(item);
         setSubmitting(false);
         setNewItem("");
-        setStatus("todo");
-        setPriority("medium");
+        setStatus(Status.Todo as Status);
+        setPriority(Priority.Medium as Priority);
         setDueDate("");
       })
       .catch(() => setSubmitting(false));
@@ -265,23 +278,19 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
       <InputGroup className="mb-3">
         <Form.Control
           value={newItem}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setNewItem(e.target.value)
-          }
+          onChange={(e: React.ChangeEvent<{ value: string }>) => setNewItem(e.target.value)}
           type="text"
           placeholder="New Item"
           aria-describedby="basic-addon1"
         />
-        <InputGroup.Append>
-          <Button
-            type="submit"
-            variant="success"
-            disabled={!newItem.length}
-            className={submitting ? "disabled" : ""}
-          >
-            {submitting ? "Adding..." : "Add Item"}
-          </Button>
-        </InputGroup.Append>
+        <Button
+          type="submit"
+          variant="success"
+          disabled={!newItem.length}
+          className={submitting ? "disabled" : ""}
+        >
+          {submitting ? "Adding..." : "Add Item"}
+        </Button>
       </InputGroup>
       <Row className="mb-3">
         <Col xs={4}>
@@ -291,7 +300,7 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               id="add-status"
               as="select"
               value={status}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+              onChange={(e: React.ChangeEvent<{ value: string }>) =>
                 setStatus(e.target.value as Status)
               }
               aria-label="Statut"
@@ -309,7 +318,7 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               id="add-priority"
               as="select"
               value={priority}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+              onChange={(e: React.ChangeEvent<{ value: string }>) =>
                 setPriority(e.target.value as Priority)
               }
               aria-label="Priorité"
@@ -327,9 +336,7 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               id="add-dueDate"
               type="date"
               value={dueDate}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setDueDate(e.target.value)
-              }
+              onChange={(e: React.ChangeEvent<{ value: string }>) => setDueDate(e.target.value)}
               aria-label="Date d'échéance"
             />
           </Form.Group>
@@ -347,9 +354,12 @@ interface ItemDisplayProps {
   onAuthRequired: () => void;
 }
 
-function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: ItemDisplayProps) {
-  const { Container, Row, Col, Button, Form } = ReactBootstrap;
-
+function ItemDisplay({
+  item,
+  onItemUpdate,
+  onItemRemoval,
+  onAuthRequired,
+}: ItemDisplayProps) {
   const status = item.status ?? Status.Todo;
   const priority = item.priority ?? Priority.Medium;
   const dueDate = item.dueDate ?? "";
@@ -366,7 +376,10 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
       completed: updates.completed ?? item.completed,
       status: updates.status ?? status,
       priority: updates.priority ?? priority,
-      dueDate: updates.dueDate !== undefined ? updates.dueDate : (item.dueDate ?? null),
+      dueDate:
+        updates.dueDate !== undefined
+          ? updates.dueDate
+          : (item.dueDate ?? null),
     };
     return fetch(`/items/${item.id}`, {
       method: "PUT",
@@ -400,15 +413,15 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
       .catch(() => {});
   };
 
-  const onStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const onStatusChange = (e: React.ChangeEvent<{ value: string }>) => {
     sendUpdate({ status: e.target.value as Status });
   };
 
-  const onPriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const onPriorityChange = (e: React.ChangeEvent<{ value: string }>) => {
     sendUpdate({ priority: e.target.value as Priority });
   };
 
-  const onDueDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const onDueDateChange = (e: React.ChangeEvent<{ value: string }>) => {
     const value = e.target.value.trim();
     sendUpdate({ dueDate: value || null });
   };
@@ -438,9 +451,21 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
         <Col xs={10} className="name">
           {item.name}
           <span className="text-muted small ms-2">
-            · {status === Status.Todo ? "À faire" : status === Status.InProgress ? "En cours" : "Terminé"}
-            · {priority === Priority.Low ? "Basse" : priority === Priority.Medium ? "Moyenne" : "Haute"}
-            {dueDate ? ` · Échéance ${new Date(dueDate).toLocaleDateString("fr-FR")}` : ""}
+            ·{" "}
+            {status === Status.Todo
+              ? "À faire"
+              : status === Status.InProgress
+                ? "En cours"
+                : "Terminé"}
+            ·{" "}
+            {priority === Priority.Low
+              ? "Basse"
+              : priority === Priority.Medium
+                ? "Moyenne"
+                : "Haute"}
+            {dueDate
+              ? ` · Échéance ${new Date(dueDate).toLocaleDateString("fr-FR")}`
+              : ""}
           </span>
         </Col>
         <Col xs={1} className="text-center remove">
@@ -459,7 +484,9 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
         <Col xs={10}>
           <Form className="d-flex flex-wrap gap-2 align-items-center">
             <Form.Group className="mb-0">
-              <Form.Label htmlFor={`status-${item.id}`} className="me-1 small">Statut</Form.Label>
+              <Form.Label htmlFor={`status-${item.id}`} className="me-1 small">
+                Statut
+              </Form.Label>
               <Form.Control
                 id={`status-${item.id}`}
                 as="select"
@@ -475,7 +502,12 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
               </Form.Control>
             </Form.Group>
             <Form.Group className="mb-0">
-              <Form.Label htmlFor={`priority-${item.id}`} className="me-1 small">Priorité</Form.Label>
+              <Form.Label
+                htmlFor={`priority-${item.id}`}
+                className="me-1 small"
+              >
+                Priorité
+              </Form.Label>
               <Form.Control
                 id={`priority-${item.id}`}
                 as="select"
@@ -491,7 +523,9 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
               </Form.Control>
             </Form.Group>
             <Form.Group className="mb-0">
-              <Form.Label htmlFor={`dueDate-${item.id}`} className="me-1 small">Échéance</Form.Label>
+              <Form.Label htmlFor={`dueDate-${item.id}`} className="me-1 small">
+                Échéance
+              </Form.Label>
               <Form.Control
                 id={`dueDate-${item.id}`}
                 type="date"
@@ -510,9 +544,7 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
   );
 }
 
-const root = document.getElementById("root");
-if (root) {
-  (
-    ReactDOM as unknown as { render: (el: unknown, container: Element) => void }
-  ).render(<App />, root);
+const rootEl = document.getElementById("root");
+if (rootEl) {
+  createRoot(rootEl).render(<App />);
 }

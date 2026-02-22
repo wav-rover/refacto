@@ -14,13 +14,16 @@
     "test:all": "npm run test && npm run test:e2e",
     "lint": "eslint src spec",
     "lint:deps": "npx dependency-cruiser src spec --config",
-    "build:front": "esbuild src/frontend/app.tsx --bundle --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts --external:react --external:react-dom"
+    "build:front": "esbuild src/frontend/app.tsx --bundle --minify --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mysql2": "^3.16.1",
+    "react": "^19.2.4",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.4",
     "sqlite3": "^5.1.7",
     "uuid": "^13.0.0",
     "wait-port": "^1.1.0"
@@ -43,8 +46,6 @@
     "jest": "^30.2.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.8.1",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
