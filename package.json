@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "nodemon -L -r dotenv/config -r ts-node/register src/index.ts",
+    "dev:no-watch": "node -r dotenv/config -r ts-node/register src/index.ts",
     "test": "jest",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",

@@ -76,7 +76,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run dev",
+    command: "npm run dev:no-watch",
     url: "http://localhost:3000",
     reuseExistingServer: false,
     env: {
