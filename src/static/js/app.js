@@ -1,16 +1,107 @@
 (() => {
   // src/frontend/app.tsx
   function App() {
-    const { Container, Row, Col } = ReactBootstrap;
-    return /* @__PURE__ */ React.createElement(Container, null, /* @__PURE__ */ React.createElement(Row, null, /* @__PURE__ */ React.createElement(Col, { md: { offset: 3, span: 6 } }, /* @__PURE__ */ React.createElement(TodoListCard, null))));
-  }
-  function TodoListCard() {
-    const [items, setItems] = React.useState(null);
+    const { Container, Row, Col, Button, Alert } = ReactBootstrap;
+    const [authState, setAuthState] = React.useState("checking");
+    const [authError, setAuthError] = React.useState(null);
     React.useEffect(() => {
-      fetch("/items").then(
-        (r) => r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
-      ).then((data) => setItems(data)).catch(() => setItems([]));
+      fetch("/items").then((r) => {
+        if (r.status === 401) {
+          setAuthState("logged_out");
+        } else if (r.ok) {
+          setAuthState("logged_in");
+        } else {
+          setAuthState("logged_out");
+        }
+      }).catch(() => setAuthState("logged_out"));
     }, []);
+    const handleLogin = (username, password) => {
+      setAuthError(null);
+      fetch("/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        headers: { "Content-Type": "application/json" }
+      }).then((r) => {
+        if (r.ok) {
+          setAuthState("logged_in");
+        } else {
+          setAuthError("Identifiants incorrects");
+        }
+      }).catch(() => setAuthError("Erreur de connexion"));
+    };
+    const handleLogout = () => {
+      fetch("/logout", { method: "POST" }).then(() => setAuthState("logged_out")).catch(() => setAuthState("logged_out"));
+    };
+    const handleAuthRequired = () => {
+      setAuthState("logged_out");
+    };
+    if (authState === "checking") {
+      return /* @__PURE__ */ React.createElement(Container, null, /* @__PURE__ */ React.createElement(Row, null, /* @__PURE__ */ React.createElement(Col, { md: { offset: 3, span: 6 }, className: "text-center mt-5" }, /* @__PURE__ */ React.createElement("p", null, "Chargement..."))));
+    }
+    if (authState === "logged_out") {
+      return /* @__PURE__ */ React.createElement(Container, null, /* @__PURE__ */ React.createElement(Row, null, /* @__PURE__ */ React.createElement(Col, { md: { offset: 3, span: 6 } }, /* @__PURE__ */ React.createElement("h2", { className: "text-center mt-4 mb-4" }, "Connexion"), authError && /* @__PURE__ */ React.createElement(Alert, { variant: "danger" }, authError), /* @__PURE__ */ React.createElement(LoginForm, { onLogin: handleLogin }))));
+    }
+    return /* @__PURE__ */ React.createElement(Container, null, /* @__PURE__ */ React.createElement(Row, null, /* @__PURE__ */ React.createElement(Col, { md: { offset: 3, span: 6 } }, /* @__PURE__ */ React.createElement("div", { className: "d-flex justify-content-end mb-3 mt-3" }, /* @__PURE__ */ React.createElement(Button, { variant: "outline-secondary", size: "sm", onClick: handleLogout }, "D\xE9connexion")), /* @__PURE__ */ React.createElement(TodoListCard, { onAuthRequired: handleAuthRequired }))));
+  }
+  function LoginForm({ onLogin }) {
+    const { Form, Button } = ReactBootstrap;
+    const [username, setUsername] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [submitting, setSubmitting] = React.useState(false);
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      setSubmitting(true);
+      onLogin(username, password);
+      setTimeout(() => setSubmitting(false), 1e3);
+    };
+    return /* @__PURE__ */ React.createElement(Form, { onSubmit: handleSubmit }, /* @__PURE__ */ React.createElement(Form.Group, { className: "mb-3" }, /* @__PURE__ */ React.createElement(Form.Label, { htmlFor: "login-username" }, "Nom d'utilisateur"), /* @__PURE__ */ React.createElement(
+      Form.Control,
+      {
+        id: "login-username",
+        type: "text",
+        placeholder: "Nom d'utilisateur",
+        value: username,
+        onChange: (e) => setUsername(e.target.value),
+        required: true,
+        "aria-label": "Nom d'utilisateur"
+      }
+    )), /* @__PURE__ */ React.createElement(Form.Group, { className: "mb-3" }, /* @__PURE__ */ React.createElement(Form.Label, { htmlFor: "login-password" }, "Mot de passe"), /* @__PURE__ */ React.createElement(
+      Form.Control,
+      {
+        id: "login-password",
+        type: "password",
+        placeholder: "Mot de passe",
+        value: password,
+        onChange: (e) => setPassword(e.target.value),
+        required: true,
+        "aria-label": "Mot de passe"
+      }
+    )), /* @__PURE__ */ React.createElement(
+      Button,
+      {
+        type: "submit",
+        variant: "primary",
+        disabled: !username || !password || submitting,
+        className: "w-100"
+      },
+      submitting ? "Connexion..." : "Se connecter"
+    ));
+  }
+  function TodoListCard({ onAuthRequired }) {
+    const [items, setItems] = React.useState(null);
+    const handleResponse = React.useCallback(
+      (r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return Promise.reject(new Error("401"));
+        }
+        return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
+      },
+      [onAuthRequired]
+    );
+    React.useEffect(() => {
+      fetch("/items").then(handleResponse).then((data) => setItems(data)).catch(() => setItems([]));
+    }, [handleResponse]);
     const onNewItem = React.useCallback((newItem) => {
       setItems((prev) => prev ? [...prev, newItem] : [newItem]);
     }, []);
@@ -29,17 +120,18 @@
       });
     }, []);
     if (items === null) return "Loading...";
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(AddItemForm, { onNewItem }), items.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-center" }, "No items yet! Add one above!"), items.map((item) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(AddItemForm, { onNewItem, onAuthRequired }), items.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-center" }, "No items yet! Add one above!"), items.map((item) => /* @__PURE__ */ React.createElement(
       ItemDisplay,
       {
         item,
         key: item.id,
         onItemUpdate,
-        onItemRemoval
+        onItemRemoval,
+        onAuthRequired
       }
     )));
   }
-  function AddItemForm({ onNewItem }) {
+  function AddItemForm({ onNewItem, onAuthRequired }) {
     const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
     const [newItem, setNewItem] = React.useState("");
     const [status, setStatus] = React.useState("todo");
@@ -58,14 +150,20 @@
           dueDate: dueDate.trim() || null
         }),
         headers: { "Content-Type": "application/json" }
-      }).then((r) => r.json()).then((item) => {
+      }).then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return Promise.reject(new Error("401"));
+        }
+        return r.json();
+      }).then((item) => {
         onNewItem(item);
         setSubmitting(false);
         setNewItem("");
         setStatus("todo");
         setPriority("medium");
         setDueDate("");
-      });
+      }).catch(() => setSubmitting(false));
     };
     return /* @__PURE__ */ React.createElement(Form, { onSubmit: submitNewItem }, /* @__PURE__ */ React.createElement(InputGroup, { className: "mb-3" }, /* @__PURE__ */ React.createElement(
       Form.Control,
@@ -120,7 +218,7 @@
       }
     )))));
   }
-  function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
+  function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }) {
     const { Container, Row, Col, Button, Form } = ReactBootstrap;
     const status = item.status ?? "todo";
     const priority = item.priority ?? "medium";
@@ -137,15 +235,27 @@
         method: "PUT",
         body: JSON.stringify(body),
         headers: { "Content-Type": "application/json" }
-      }).then((r) => r.json()).then((data) => onItemUpdate(data));
+      }).then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return Promise.reject(new Error("401"));
+        }
+        return r.json();
+      }).then((data) => onItemUpdate(data)).catch(() => {
+      });
     };
     const toggleCompletion = () => {
       sendUpdate({ completed: !item.completed });
     };
     const removeItem = () => {
-      fetch(`/items/${item.id}`, { method: "DELETE" }).then(
-        () => onItemRemoval(item)
-      );
+      fetch(`/items/${item.id}`, { method: "DELETE" }).then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return;
+        }
+        onItemRemoval(item);
+      }).catch(() => {
+      });
     };
     const onStatusChange = (e) => {
       sendUpdate({ status: e.target.value });

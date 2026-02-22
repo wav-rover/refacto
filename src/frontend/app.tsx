@@ -14,30 +14,175 @@ interface Item {
   dueDate: string | null;
 }
 
+type AuthState = "checking" | "logged_out" | "logged_in";
+
 function App() {
-  const { Container, Row, Col } = ReactBootstrap;
+  const { Container, Row, Col, Button, Alert } = ReactBootstrap;
+  const [authState, setAuthState] = React.useState<AuthState>("checking");
+  const [authError, setAuthError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch("/items")
+      .then((r) => {
+        if (r.status === 401) {
+          setAuthState("logged_out");
+        } else if (r.ok) {
+          setAuthState("logged_in");
+        } else {
+          setAuthState("logged_out");
+        }
+      })
+      .catch(() => setAuthState("logged_out"));
+  }, []);
+
+  const handleLogin = (username: string, password: string) => {
+    setAuthError(null);
+    fetch("/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((r) => {
+        if (r.ok) {
+          setAuthState("logged_in");
+        } else {
+          setAuthError("Identifiants incorrects");
+        }
+      })
+      .catch(() => setAuthError("Erreur de connexion"));
+  };
+
+  const handleLogout = () => {
+    fetch("/logout", { method: "POST" })
+      .then(() => setAuthState("logged_out"))
+      .catch(() => setAuthState("logged_out"));
+  };
+
+  const handleAuthRequired = () => {
+    setAuthState("logged_out");
+  };
+
+  if (authState === "checking") {
+    return (
+      <Container>
+        <Row>
+          <Col md={{ offset: 3, span: 6 }} className="text-center mt-5">
+            <p>Chargement...</p>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+
+  if (authState === "logged_out") {
+    return (
+      <Container>
+        <Row>
+          <Col md={{ offset: 3, span: 6 }}>
+            <h2 className="text-center mt-4 mb-4">Connexion</h2>
+            {authError && <Alert variant="danger">{authError}</Alert>}
+            <LoginForm onLogin={handleLogin} />
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <Row>
         <Col md={{ offset: 3, span: 6 }}>
-          <TodoListCard />
+          <div className="d-flex justify-content-end mb-3 mt-3">
+            <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+              Déconnexion
+            </Button>
+          </div>
+          <TodoListCard onAuthRequired={handleAuthRequired} />
         </Col>
       </Row>
     </Container>
   );
 }
 
-function TodoListCard() {
+interface LoginFormProps {
+  onLogin: (username: string, password: string) => void;
+}
+
+function LoginForm({ onLogin }: LoginFormProps) {
+  const { Form, Button } = ReactBootstrap;
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
+    onLogin(username, password);
+    setTimeout(() => setSubmitting(false), 1000);
+  };
+
+  return (
+    <Form onSubmit={handleSubmit}>
+      <Form.Group className="mb-3">
+        <Form.Label htmlFor="login-username">Nom d&apos;utilisateur</Form.Label>
+        <Form.Control
+          id="login-username"
+          type="text"
+          placeholder="Nom d'utilisateur"
+          value={username}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+          required
+          aria-label="Nom d'utilisateur"
+        />
+      </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label htmlFor="login-password">Mot de passe</Form.Label>
+        <Form.Control
+          id="login-password"
+          type="password"
+          placeholder="Mot de passe"
+          value={password}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+          required
+          aria-label="Mot de passe"
+        />
+      </Form.Group>
+      <Button
+        type="submit"
+        variant="primary"
+        disabled={!username || !password || submitting}
+        className="w-100"
+      >
+        {submitting ? "Connexion..." : "Se connecter"}
+      </Button>
+    </Form>
+  );
+}
+
+interface TodoListCardProps {
+  onAuthRequired: () => void;
+}
+
+function TodoListCard({ onAuthRequired }: TodoListCardProps) {
   const [items, setItems] = React.useState<Item[] | null>(null);
+
+  const handleResponse = React.useCallback(
+    (r: Response) => {
+      if (r.status === 401) {
+        onAuthRequired();
+        return Promise.reject(new Error("401"));
+      }
+      return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
+    },
+    [onAuthRequired]
+  );
 
   React.useEffect(() => {
     fetch("/items")
-      .then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
-      )
+      .then(handleResponse)
       .then((data: Item[]) => setItems(data))
       .catch(() => setItems([]));
-  }, []);
+  }, [handleResponse]);
 
   const onNewItem = React.useCallback((newItem: Item) => {
     setItems((prev) => (prev ? [...prev, newItem] : [newItem]));
@@ -63,7 +208,7 @@ function TodoListCard() {
 
   return (
     <React.Fragment>
-      <AddItemForm onNewItem={onNewItem} />
+      <AddItemForm onNewItem={onNewItem} onAuthRequired={onAuthRequired} />
       {items.length === 0 && (
         <p className="text-center">No items yet! Add one above!</p>
       )}
@@ -73,6 +218,7 @@ function TodoListCard() {
           key={item.id}
           onItemUpdate={onItemUpdate}
           onItemRemoval={onItemRemoval}
+          onAuthRequired={onAuthRequired}
         />
       ))}
     </React.Fragment>
@@ -81,9 +227,10 @@ function TodoListCard() {
 
 interface AddItemFormProps {
   onNewItem: (item: Item) => void;
+  onAuthRequired: () => void;
 }
 
-function AddItemForm({ onNewItem }: AddItemFormProps) {
+function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
   const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
 
   const [newItem, setNewItem] = React.useState<string>("");
@@ -105,7 +252,13 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
       }),
       headers: { "Content-Type": "application/json" },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return Promise.reject(new Error("401"));
+        }
+        return r.json();
+      })
       .then((item: Item) => {
         onNewItem(item);
         setSubmitting(false);
@@ -113,7 +266,8 @@ function AddItemForm({ onNewItem }: AddItemFormProps) {
         setStatus("todo");
         setPriority("medium");
         setDueDate("");
-      });
+      })
+      .catch(() => setSubmitting(false));
   };
 
   return (
@@ -200,9 +354,10 @@ interface ItemDisplayProps {
   key?: string;
   onItemUpdate: (item: Item) => void;
   onItemRemoval: (item: Item) => void;
+  onAuthRequired: () => void;
 }
 
-function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
+function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: ItemDisplayProps) {
   const { Container, Row, Col, Button, Form } = ReactBootstrap;
 
   const status = item.status ?? "todo";
@@ -228,8 +383,15 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
       body: JSON.stringify(body),
       headers: { "Content-Type": "application/json" },
     })
-      .then((r) => r.json())
-      .then((data: Item) => onItemUpdate(data));
+      .then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return Promise.reject(new Error("401"));
+        }
+        return r.json();
+      })
+      .then((data: Item) => onItemUpdate(data))
+      .catch(() => {});
   };
 
   const toggleCompletion = () => {
@@ -237,9 +399,15 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
   };
 
   const removeItem = () => {
-    fetch(`/items/${item.id}`, { method: "DELETE" }).then(() =>
-      onItemRemoval(item),
-    );
+    fetch(`/items/${item.id}`, { method: "DELETE" })
+      .then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          return;
+        }
+        onItemRemoval(item);
+      })
+      .catch(() => {});
   };
 
   const onStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {

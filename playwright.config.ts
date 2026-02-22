@@ -21,7 +21,16 @@ export default defineConfig({
     },
 
     {
+      name: "chromium-auth",
+      testMatch: /auth\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
+
+    {
       name: "chromium",
+      testIgnore: /auth\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: "storageState.json",
@@ -30,7 +39,16 @@ export default defineConfig({
     },
 
     {
+      name: "firefox-auth",
+      testMatch: /auth\.spec\.ts/,
+      use: {
+        ...devices["Desktop Firefox"],
+      },
+    },
+
+    {
       name: "firefox",
+      testIgnore: /auth\.spec\.ts/,
       use: {
         ...devices["Desktop Firefox"],
         storageState: "storageState.json",
@@ -39,7 +57,16 @@ export default defineConfig({
     },
 
     {
+      name: "webkit-auth",
+      testMatch: /auth\.spec\.ts/,
+      use: {
+        ...devices["Desktop Safari"],
+      },
+    },
+
+    {
       name: "webkit",
+      testIgnore: /auth\.spec\.ts/,
       use: {
         ...devices["Desktop Safari"],
         storageState: "storageState.json",
