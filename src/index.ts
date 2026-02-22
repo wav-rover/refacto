@@ -1,16 +1,28 @@
 const express = require("express");
+const session = require("express-session");
 const app = express();
 const { createRepository } = require("./persistence");
 const getItems = require("./routes/getItems");
 const addItem = require("./routes/addItem");
 const updateItem = require("./routes/updateItem");
 const deleteItem = require("./routes/deleteItem");
+const login = require("./routes/login");
 
 const repo = createRepository();
+const sessionSecret = process.env.SESSION_SECRET ?? "dev-secret";
 
 app.use(express.json());
+app.use(
+  session({
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { httpOnly: true },
+  })
+);
 app.use(express.static(__dirname + "/static"));
 
+app.post("/login", login);
 app.get("/items", getItems(repo));
 app.post("/items", addItem(repo));
 app.put("/items/:id", updateItem(repo));
