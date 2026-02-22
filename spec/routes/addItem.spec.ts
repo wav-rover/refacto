@@ -32,7 +32,7 @@ describe("addItem", () => {
   test("stores item with valid name and returns it", async () => {
     const id = "1234";
     const name = "A sample item";
-    const req = { body: { name } } as Request;
+    const req = { body: { name }, session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
 
     (uuid as jest.Mock).mockReturnValue(id);
@@ -55,7 +55,7 @@ describe("addItem", () => {
   });
 
   test("returns 400 when body has no name", async () => {
-    const req = { body: {} } as Request;
+    const req = { body: {}, session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
 
     const handler = addItem(mockRepo);
@@ -67,7 +67,7 @@ describe("addItem", () => {
   });
 
   test("returns 400 when name is empty string", async () => {
-    const req = { body: { name: "" } } as Request;
+    const req = { body: { name: "" }, session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
 
     const handler = addItem(mockRepo);
@@ -79,7 +79,7 @@ describe("addItem", () => {
   });
 
   test("returns 400 when name is only whitespace", async () => {
-    const req = { body: { name: "   " } } as Request;
+    const req = { body: { name: "   " }, session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
 
     const handler = addItem(mockRepo);
@@ -101,7 +101,8 @@ describe("addItem", () => {
         priority: Priority.High,
         dueDate,
       },
-    } as Request;
+      session: { user: "test-user" },
+    } as unknown as Request;
     const res = createRes();
 
     (uuid as jest.Mock).mockReturnValue(id);

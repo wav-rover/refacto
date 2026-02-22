@@ -34,7 +34,10 @@ describe("deleteItem", () => {
   test("removes item when it exists and returns 200", async () => {
     const id = "1234";
     const item: Item = { id, name: "An item", completed: false };
-    const req = { params: { id } } as unknown as Request;
+    const req = {
+      params: { id },
+      session: { user: "test-user" },
+    } as unknown as Request;
     const res = createRes();
 
     mockRepo.getItem.mockResolvedValue(item);
@@ -50,7 +53,10 @@ describe("deleteItem", () => {
   });
 
   test("returns 404 when item does not exist", async () => {
-    const req = { params: { id: "unknown" } } as unknown as Request;
+    const req = {
+      params: { id: "unknown" },
+      session: { user: "test-user" },
+    } as unknown as Request;
     const res = createRes();
 
     mockRepo.getItem.mockResolvedValue(undefined);

@@ -35,7 +35,7 @@ describe("getItems", () => {
         dueDate: null,
       },
     ];
-    const req = {} as Request;
+    const req = { session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
     const mockRepo = createMockRepo();
     mockRepo.getItems.mockResolvedValue(ITEMS);
@@ -48,7 +48,7 @@ describe("getItems", () => {
   });
 
   test("returns empty array when no items", async () => {
-    const req = {} as Request;
+    const req = { session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
     const mockRepo = createMockRepo();
     mockRepo.getItems.mockResolvedValue([]);
@@ -61,7 +61,7 @@ describe("getItems", () => {
   });
 
   test("does not send response when getItems rejects", async () => {
-    const req = {} as Request;
+    const req = { session: { user: "test-user" } } as unknown as Request;
     const res = createRes();
     const mockRepo = createMockRepo();
     mockRepo.getItems.mockRejectedValue(new Error("DB error"));

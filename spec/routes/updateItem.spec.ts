@@ -39,6 +39,7 @@ describe("updateItem", () => {
     const req = {
       params: { id },
       body: { name: "New title", completed: false },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -67,7 +68,11 @@ describe("updateItem", () => {
       priority: Priority.Medium,
       dueDate: null,
     };
-    const req = { params: { id }, body: {} } as unknown as Request;
+    const req = {
+      params: { id },
+      body: {},
+      session: { user: "test-user" },
+    } as unknown as Request;
     const res = createRes();
 
     mockRepo.getItem.mockResolvedValue(existing);
@@ -92,6 +97,7 @@ describe("updateItem", () => {
     const req = {
       params: { id },
       body: { name: "" },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -118,6 +124,7 @@ describe("updateItem", () => {
     const req = {
       params: { id },
       body: { name: "   " },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -135,6 +142,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "unknown" },
       body: { name: "New title", completed: false },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -163,6 +171,7 @@ describe("updateItem", () => {
     const req = {
       params: { id },
       body: { status: Status.Done },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -189,6 +198,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "1234" },
       body: { priority: Priority.High },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 
@@ -215,6 +225,7 @@ describe("updateItem", () => {
     const req = {
       params: { id: "1234" },
       body: { dueDate: "2025-12-31" },
+      session: { user: "test-user" },
     } as unknown as Request;
     const res = createRes();
 

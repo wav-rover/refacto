@@ -19,7 +19,7 @@ Prérequis : **phase 6 terminée** et validée (tous les tests verts, wiring + i
 2. **Priorité** : valeur parmi un petit ensemble (ex. `low` | `medium` | `high`).
 3. **Date d'échéance** : date optionnelle (chaîne ISO ou `null`).
 4. **Auth** (en dernier) : authentification minimale puis protection des routes et de l'UI.
- 
+
 ---
 
 ## Modèle de données (à aligner partout)
@@ -82,6 +82,31 @@ Prérequis : **phase 6 terminée** et validée (tous les tests verts, wiring + i
    Documenter dans ce fichier comment configurer les identifiants (env vars) et comment appeler le login (ex. depuis le front ou curl).
 
 **Livrable :** Routes addItem/updateItem avec statut, priorité, date d'échéance ; specs verts ; puis auth (login + protection) et doc.
+
+### Étape Jeremy – Configuration et exemples
+
+**Variables d'environnement :**
+
+- `AUTH_USERNAME` : identifiant pour le login (ex. `admin`).
+- `AUTH_PASSWORD` : mot de passe pour le login (ex. `secret`).
+- `SESSION_SECRET` : secret utilisé pour signer le cookie de session (ex. `my-session-secret`). En dev, une valeur par défaut est utilisée si absente.
+
+**Pour tester le back du login (curl) :**
+
+Sauvegarder le cookie reçu au login dans un fichier, puis réutiliser ce cookie pour les requêtes suivantes (ex. vers `/items`) :
+
+```bash
+# Login : enregistre le cookie dans cookies.txt
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"secret"}' \
+  -c cookies.txt
+
+# Requêtes suivantes avec le cookie (ex. GET /items)
+curl -b cookies.txt http://localhost:3000/items
+```
+
+**Logout :** `POST /logout` détruit la session et renvoie 204. Ensuite, les appels à `/items` sans nouveau login renverront 401.
 
 ---
 

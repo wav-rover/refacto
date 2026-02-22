@@ -7,6 +7,8 @@ const addItem = require("./routes/addItem");
 const updateItem = require("./routes/updateItem");
 const deleteItem = require("./routes/deleteItem");
 const login = require("./routes/login");
+const logout = require("./routes/logout");
+const requireAuth = require("./middleware/requireAuth");
 
 const repo = createRepository();
 const sessionSecret = process.env.SESSION_SECRET ?? "dev-secret";
@@ -23,6 +25,8 @@ app.use(
 app.use(express.static(__dirname + "/static"));
 
 app.post("/login", login);
+app.post("/logout", logout);
+app.use("/items", requireAuth);
 app.get("/items", getItems(repo));
 app.post("/items", addItem(repo));
 app.put("/items/:id", updateItem(repo));
