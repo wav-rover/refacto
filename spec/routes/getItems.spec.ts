@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import getItems from "../../src/routes/getItems";
-import type { ItemRepository } from "../../src/ports/itemRepository";
-import type { Item } from "../../src/ports/itemRepository";
+import type { Item, ItemRepository } from "../../src/ports/itemRepository";
+import { Priority, Status } from "../../src/ports/itemRepository";
 
 const createMockRepo = (): jest.Mocked<ItemRepository> => ({
   init: jest.fn().mockResolvedValue(undefined),
@@ -30,8 +30,8 @@ describe("getItems", () => {
         id: "12345",
         name: "item",
         completed: false,
-        status: "todo",
-        priority: "medium",
+        status: Status.Todo,
+        priority: Priority.Medium,
         dueDate: null,
       },
     ];

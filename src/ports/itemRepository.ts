@@ -1,9 +1,21 @@
+export enum Status {
+  Todo = 'todo',
+  InProgress = 'in_progress',
+  Done = 'done',
+}
+
+export enum Priority {
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
+}
+
 export interface Item {
   id: string;
   name: string;
   completed: boolean;
-  status: 'todo' | 'in_progress' | 'done';
-  priority: 'low' | 'medium' | 'high';
+  status: Status;
+  priority: Priority;
   dueDate: string | null;
 }
 

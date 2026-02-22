@@ -1,5 +1,6 @@
 import inMemoryRepository from "../../src/persistence/inMemory";
 import type { Item } from "../../src/ports/itemRepository";
+import { Priority, Status } from "../../src/ports/itemRepository";
 
 const repo = inMemoryRepository;
 
@@ -7,8 +8,8 @@ const ITEM: Item = {
   id: "7aef3d7c-d301-4846-8358-2a91ec9d6be3",
   name: "Test",
   completed: false,
-  status: "todo",
-  priority: "medium",
+  status: Status.Todo,
+  priority: Priority.Medium,
   dueDate: null,
 };
 
@@ -63,12 +64,12 @@ describe("repository contract (InMemory)", () => {
     await repo.storeItem(ITEM);
 
     await repo.updateItem(ITEM.id, {
-      status: "in_progress",
+      status: Status.InProgress,
       dueDate: "2025-12-31",
     });
 
     const item = await repo.getItem(ITEM.id);
-    expect(item?.status).toBe("in_progress");
+    expect(item?.status).toBe(Status.InProgress);
     expect(item?.dueDate).toBe("2025-12-31");
   });
 });

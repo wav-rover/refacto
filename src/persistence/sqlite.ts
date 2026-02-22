@@ -1,6 +1,7 @@
 const sqlite3 = require("sqlite3").verbose();
 const fs = require("fs");
 import type { Item, ItemRepository, ItemUpdate } from "../ports/itemRepository";
+import { Priority, Status } from "../ports/itemRepository";
 
 const location = process.env.SQLITE_DB_LOCATION || "/etc/todos/todo.db";
 
@@ -21,8 +22,8 @@ function mapRow(row: ItemRow): Item {
     id: row.id,
     name: row.name,
     completed: row.completed === 1,
-    status: (row.status as Item["status"]) ?? "todo",
-    priority: (row.priority as Item["priority"]) ?? "medium",
+    status: (row.status ?? Status.Todo) as Status,
+    priority: (row.priority ?? Priority.Medium) as Priority,
     dueDate: row.dueDate ?? null,
   };
 }

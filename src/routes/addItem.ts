@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import type { Item, ItemRepository } from "../ports/itemRepository";
+import { Priority, Status } from "../ports/itemRepository";
 const { v4: uuid } = require("uuid");
 
 function addItem(repo: ItemRepository) {
@@ -10,10 +11,17 @@ function addItem(repo: ItemRepository) {
       return;
     }
 
+    const status = (req.body?.status ?? Status.Todo) as Status;
+    const priority = (req.body?.priority ?? Priority.Medium) as Priority;
+    const dueDate = req.body?.dueDate ? String(req.body.dueDate) : null;
+
     const item: Item = {
       id: uuid(),
       name: String(name).trim(),
       completed: false,
+      status,
+      priority,
+      dueDate,
     };
 
     await repo.storeItem(item);
