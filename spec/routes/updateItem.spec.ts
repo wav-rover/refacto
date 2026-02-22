@@ -1,11 +1,7 @@
 import type { Request, Response } from "express";
+import type { Item } from "../../src/ports/itemRepository";
+import { Priority, Status } from "../../src/ports/itemRepository";
 const updateItem = require("../../src/routes/updateItem");
-
-interface Item {
-  id: string;
-  name: string;
-  completed: boolean;
-}
 
 const createMockRepo = () => ({
   init: jest.fn(),
@@ -32,14 +28,21 @@ describe("updateItem", () => {
 
   test("updates item with valid body and returns it", async () => {
     const id = "1234";
-    const updatedItem: Item = { id, name: "New title", completed: false };
+    const updated: Item = {
+      id,
+      name: "New title",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: null,
+    };
     const req = {
       params: { id },
       body: { name: "New title", completed: false },
     } as unknown as Request;
     const res = createRes();
 
-    mockRepo.getItem.mockResolvedValue(updatedItem);
+    mockRepo.getItem.mockResolvedValue(updated);
 
     const handler = updateItem(mockRepo);
     await handler(req, res);
@@ -51,27 +54,48 @@ describe("updateItem", () => {
       completed: false,
     });
     expect(mockRepo.getItem).toHaveBeenCalledTimes(2);
-    expect(res.send).toHaveBeenCalledWith(updatedItem);
+    expect(res.send).toHaveBeenCalledWith(updated);
   });
 
-  test("returns 400 when body has no name", async () => {
-    const req = { params: { id: "1234" }, body: {} } as unknown as Request;
+  test("when body is empty, calls updateItem with {} and returns current item", async () => {
+    const id = "1234";
+    const existing: Item = {
+      id,
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: null,
+    };
+    const req = { params: { id }, body: {} } as unknown as Request;
     const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(existing);
 
     const handler = updateItem(mockRepo);
     await handler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith({ error: "Name is required" });
-    expect(mockRepo.updateItem).not.toHaveBeenCalled();
+    expect(mockRepo.updateItem).toHaveBeenCalledWith(id, {});
+    expect(res.send).toHaveBeenCalledWith(existing);
   });
 
   test("returns 400 when name is empty string", async () => {
+    const id = "1234";
+    const existing: Item = {
+      id,
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: null,
+    };
     const req = {
-      params: { id: "1234" },
+      params: { id },
       body: { name: "" },
     } as unknown as Request;
     const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(existing);
 
     const handler = updateItem(mockRepo);
     await handler(req, res);
@@ -82,11 +106,22 @@ describe("updateItem", () => {
   });
 
   test("returns 400 when name is only whitespace", async () => {
+    const id = "1234";
+    const existing: Item = {
+      id,
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: null,
+    };
     const req = {
-      params: { id: "1234" },
+      params: { id },
       body: { name: "   " },
     } as unknown as Request;
     const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(existing);
 
     const handler = updateItem(mockRepo);
     await handler(req, res);
@@ -113,6 +148,92 @@ describe("updateItem", () => {
     expect(mockRepo.updateItem).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.send).toHaveBeenCalledWith({ error: "Item not found" });
+  });
+
+  test("updates status and returns updated item", async () => {
+    const id = "1234";
+    const updated: Item = {
+      id,
+      name: "Item",
+      completed: false,
+      status: Status.Done,
+      priority: Priority.Medium,
+      dueDate: null,
+    };
+    const req = {
+      params: { id },
+      body: { status: Status.Done },
+    } as unknown as Request;
+    const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(updated);
+
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
+
+    expect(mockRepo.updateItem).toHaveBeenCalledWith(id, {
+      status: Status.Done,
+    });
+    expect(res.send).toHaveBeenCalledWith(updated);
+  });
+
+  test("updates priority and returns updated item", async () => {
+    const updated: Item = {
+      id: "1234",
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.High,
+      dueDate: null,
+    };
+    const req = {
+      params: { id: "1234" },
+      body: { priority: Priority.High },
+    } as unknown as Request;
+    const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(updated);
+
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
+
+    expect(mockRepo.updateItem).toHaveBeenCalledWith("1234", {
+      priority: Priority.High,
+    });
+    expect(res.send).toHaveBeenCalledWith(updated);
+  });
+
+  test("updates dueDate and returns updated item", async () => {
+    const updated: Item = {
+      id: "1234",
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: "2025-12-31",
+    };
+    const req = {
+      params: { id: "1234" },
+      body: { dueDate: "2025-12-31" },
+    } as unknown as Request;
+    const res = createRes();
+
+    mockRepo.getItem.mockResolvedValue(updated);
+
+    const handler = updateItem(mockRepo);
+    await handler(req, res);
+
+    expect(mockRepo.updateItem).toHaveBeenCalledWith("1234", {
+      dueDate: "2025-12-31",
+    });
+    expect(res.send).toHaveBeenCalledWith({
+      id: "1234",
+      name: "Item",
+      completed: false,
+      status: Status.Todo,
+      priority: Priority.Medium,
+      dueDate: "2025-12-31",
+    });
   });
 });
 
