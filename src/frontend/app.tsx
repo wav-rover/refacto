@@ -1,18 +1,8 @@
 /// <reference types="react" />
+import { Status, Priority, Item } from '../ports/itemRepository';
+
 type FormEvent<T> = React.FormEvent<T>;
 type ChangeEvent<T> = React.ChangeEvent<T>;
-
-type ItemStatus = "todo" | "in_progress" | "done";
-type ItemPriority = "low" | "medium" | "high";
-
-interface Item {
-  id: string;
-  name: string;
-  completed: boolean;
-  status: ItemStatus;
-  priority: ItemPriority;
-  dueDate: string | null;
-}
 
 type AuthState = "checking" | "logged_out" | "logged_in";
 
@@ -234,8 +224,8 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
   const { Form, InputGroup, Button, Row, Col } = ReactBootstrap;
 
   const [newItem, setNewItem] = React.useState<string>("");
-  const [status, setStatus] = React.useState<ItemStatus>("todo");
-  const [priority, setPriority] = React.useState<ItemPriority>("medium");
+  const [status, setStatus] = React.useState<Status>(Status.Todo);
+  const [priority, setPriority] = React.useState<Priority>(Priority.Medium);
   const [dueDate, setDueDate] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState<boolean>(false);
 
@@ -302,13 +292,13 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               as="select"
               value={status}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setStatus(e.target.value as ItemStatus)
+                setStatus(e.target.value as Status)
               }
               aria-label="Statut"
             >
-              <option value="todo">À faire</option>
-              <option value="in_progress">En cours</option>
-              <option value="done">Terminé</option>
+              <option value={Status.Todo}>À faire</option>
+              <option value={Status.InProgress}>En cours</option>
+              <option value={Status.Done}>Terminé</option>
             </Form.Control>
           </Form.Group>
         </Col>
@@ -320,13 +310,13 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               as="select"
               value={priority}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setPriority(e.target.value as ItemPriority)
+                setPriority(e.target.value as Priority)
               }
               aria-label="Priorité"
             >
-              <option value="low">Basse</option>
-              <option value="medium">Moyenne</option>
-              <option value="high">Haute</option>
+              <option value={Priority.Low}>Basse</option>
+              <option value={Priority.Medium}>Moyenne</option>
+              <option value={Priority.High}>Haute</option>
             </Form.Control>
           </Form.Group>
         </Col>
@@ -360,15 +350,15 @@ interface ItemDisplayProps {
 function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: ItemDisplayProps) {
   const { Container, Row, Col, Button, Form } = ReactBootstrap;
 
-  const status = item.status ?? "todo";
-  const priority = item.priority ?? "medium";
+  const status = item.status ?? Status.Todo;
+  const priority = item.priority ?? Priority.Medium;
   const dueDate = item.dueDate ?? "";
 
   const sendUpdate = (updates: {
     name?: string;
     completed?: boolean;
-    status?: ItemStatus;
-    priority?: ItemPriority;
+    status?: Status;
+    priority?: Priority;
     dueDate?: string | null;
   }) => {
     const body = {
@@ -411,11 +401,11 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
   };
 
   const onStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    sendUpdate({ status: e.target.value as ItemStatus });
+    sendUpdate({ status: e.target.value as Status });
   };
 
   const onPriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    sendUpdate({ priority: e.target.value as ItemPriority });
+    sendUpdate({ priority: e.target.value as Priority });
   };
 
   const onDueDateChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -448,8 +438,8 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
         <Col xs={10} className="name">
           {item.name}
           <span className="text-muted small ms-2">
-            · {status === "todo" ? "À faire" : status === "in_progress" ? "En cours" : "Terminé"}
-            · {priority === "low" ? "Basse" : priority === "medium" ? "Moyenne" : "Haute"}
+            · {status === Status.Todo ? "À faire" : status === Status.InProgress ? "En cours" : "Terminé"}
+            · {priority === Priority.Low ? "Basse" : priority === Priority.Medium ? "Moyenne" : "Haute"}
             {dueDate ? ` · Échéance ${new Date(dueDate).toLocaleDateString("fr-FR")}` : ""}
           </span>
         </Col>
@@ -479,9 +469,9 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
                 aria-label="Statut"
                 style={{ width: "auto" }}
               >
-                <option value="todo">À faire</option>
-                <option value="in_progress">En cours</option>
-                <option value="done">Terminé</option>
+                <option value={Status.Todo}>À faire</option>
+                <option value={Status.InProgress}>En cours</option>
+                <option value={Status.Done}>Terminé</option>
               </Form.Control>
             </Form.Group>
             <Form.Group className="mb-0">
@@ -495,9 +485,9 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval, onAuthRequired }: Item
                 aria-label="Priorité"
                 style={{ width: "auto" }}
               >
-                <option value="low">Basse</option>
-                <option value="medium">Moyenne</option>
-                <option value="high">Haute</option>
+                <option value={Priority.Low}>Basse</option>
+                <option value={Priority.Medium}>Moyenne</option>
+                <option value={Priority.High}>Haute</option>
               </Form.Control>
             </Form.Group>
             <Form.Group className="mb-0">
