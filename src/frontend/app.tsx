@@ -201,25 +201,56 @@ interface ItemDisplayProps {
 }
 
 function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
-  const { Container, Row, Col, Button } = ReactBootstrap;
+  const { Container, Row, Col, Button, Form } = ReactBootstrap;
 
-  const toggleCompletion = () => {
-    fetch(`/items/${item.id}`, {
+  const status = item.status ?? "todo";
+  const priority = item.priority ?? "medium";
+  const dueDate = item.dueDate ?? "";
+
+  const sendUpdate = (updates: {
+    name?: string;
+    completed?: boolean;
+    status?: ItemStatus;
+    priority?: ItemPriority;
+    dueDate?: string | null;
+  }) => {
+    const body = {
+      name: updates.name ?? item.name,
+      completed: updates.completed ?? item.completed,
+      status: updates.status ?? status,
+      priority: updates.priority ?? priority,
+      dueDate: updates.dueDate !== undefined ? updates.dueDate : (item.dueDate ?? null),
+    };
+    return fetch(`/items/${item.id}`, {
       method: "PUT",
-      body: JSON.stringify({
-        name: item.name,
-        completed: !item.completed,
-      }),
+      body: JSON.stringify(body),
       headers: { "Content-Type": "application/json" },
     })
       .then((r) => r.json())
       .then((data: Item) => onItemUpdate(data));
   };
 
+  const toggleCompletion = () => {
+    sendUpdate({ completed: !item.completed });
+  };
+
   const removeItem = () => {
     fetch(`/items/${item.id}`, { method: "DELETE" }).then(() =>
       onItemRemoval(item),
     );
+  };
+
+  const onStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    sendUpdate({ status: e.target.value as ItemStatus });
+  };
+
+  const onPriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    sendUpdate({ priority: e.target.value as ItemPriority });
+  };
+
+  const onDueDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.trim();
+    sendUpdate({ dueDate: value || null });
   };
 
   return (
@@ -246,6 +277,11 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
         </Col>
         <Col xs={10} className="name">
           {item.name}
+          <span className="text-muted small ms-2">
+            · {status === "todo" ? "À faire" : status === "in_progress" ? "En cours" : "Terminé"}
+            · {priority === "low" ? "Basse" : priority === "medium" ? "Moyenne" : "Haute"}
+            {dueDate ? ` · Échéance ${new Date(dueDate).toLocaleDateString("fr-FR")}` : ""}
+          </span>
         </Col>
         <Col xs={1} className="text-center remove">
           <Button
@@ -257,6 +293,58 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }: ItemDisplayProps) {
             <i className="fa fa-trash text-danger" />
           </Button>
         </Col>
+      </Row>
+      <Row className="mb-2">
+        <Col xs={1} />
+        <Col xs={10}>
+          <Form className="d-flex flex-wrap gap-2 align-items-center">
+            <Form.Group className="mb-0">
+              <Form.Label htmlFor={`status-${item.id}`} className="me-1 small">Statut</Form.Label>
+              <Form.Control
+                id={`status-${item.id}`}
+                as="select"
+                size="sm"
+                value={status}
+                onChange={onStatusChange}
+                aria-label="Statut"
+                style={{ width: "auto" }}
+              >
+                <option value="todo">À faire</option>
+                <option value="in_progress">En cours</option>
+                <option value="done">Terminé</option>
+              </Form.Control>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <Form.Label htmlFor={`priority-${item.id}`} className="me-1 small">Priorité</Form.Label>
+              <Form.Control
+                id={`priority-${item.id}`}
+                as="select"
+                size="sm"
+                value={priority}
+                onChange={onPriorityChange}
+                aria-label="Priorité"
+                style={{ width: "auto" }}
+              >
+                <option value="low">Basse</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Haute</option>
+              </Form.Control>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <Form.Label htmlFor={`dueDate-${item.id}`} className="me-1 small">Échéance</Form.Label>
+              <Form.Control
+                id={`dueDate-${item.id}`}
+                type="date"
+                size="sm"
+                value={dueDate}
+                onChange={onDueDateChange}
+                aria-label="Date d'échéance"
+                style={{ width: "auto" }}
+              />
+            </Form.Group>
+          </Form>
+        </Col>
+        <Col xs={1} />
       </Row>
     </Container>
   );

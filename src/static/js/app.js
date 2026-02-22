@@ -1132,21 +1132,41 @@
     )))));
   }
   function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
-    const { Container, Row, Col, Button } = ReactBootstrap;
-    const toggleCompletion = () => {
-      fetch(`/items/${item.id}`, {
+    const { Container, Row, Col, Button, Form } = ReactBootstrap;
+    const status = item.status ?? "todo";
+    const priority = item.priority ?? "medium";
+    const dueDate = item.dueDate ?? "";
+    const sendUpdate = (updates) => {
+      const body = {
+        name: updates.name ?? item.name,
+        completed: updates.completed ?? item.completed,
+        status: updates.status ?? status,
+        priority: updates.priority ?? priority,
+        dueDate: updates.dueDate !== void 0 ? updates.dueDate : item.dueDate ?? null
+      };
+      return fetch(`/items/${item.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          name: item.name,
-          completed: !item.completed
-        }),
+        body: JSON.stringify(body),
         headers: { "Content-Type": "application/json" }
       }).then((r) => r.json()).then((data) => onItemUpdate(data));
+    };
+    const toggleCompletion = () => {
+      sendUpdate({ completed: !item.completed });
     };
     const removeItem = () => {
       fetch(`/items/${item.id}`, { method: "DELETE" }).then(
         () => onItemRemoval(item)
       );
+    };
+    const onStatusChange = (e) => {
+      sendUpdate({ status: e.target.value });
+    };
+    const onPriorityChange = (e) => {
+      sendUpdate({ priority: e.target.value });
+    };
+    const onDueDateChange = (e) => {
+      const value = e.target.value.trim();
+      sendUpdate({ dueDate: value || null });
     };
     return /* @__PURE__ */ import_react.default.createElement(Container, { fluid: true, className: `item ${item.completed ? "completed" : ""}` }, /* @__PURE__ */ import_react.default.createElement(Row, null, /* @__PURE__ */ import_react.default.createElement(Col, { xs: 1, className: "text-center" }, /* @__PURE__ */ import_react.default.createElement(
       Button,
@@ -1163,7 +1183,7 @@
           className: `far ${item.completed ? "fa-check-square" : "fa-square"}`
         }
       )
-    )), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 10, className: "name" }, item.name), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 1, className: "text-center remove" }, /* @__PURE__ */ import_react.default.createElement(
+    )), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 10, className: "name" }, item.name, /* @__PURE__ */ import_react.default.createElement("span", { className: "text-muted small ms-2" }, "\xB7 ", status === "todo" ? "\xC0 faire" : status === "in_progress" ? "En cours" : "Termin\xE9", "\xB7 ", priority === "low" ? "Basse" : priority === "medium" ? "Moyenne" : "Haute", dueDate ? ` \xB7 \xC9ch\xE9ance ${new Date(dueDate).toLocaleDateString("fr-FR")}` : "")), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 1, className: "text-center remove" }, /* @__PURE__ */ import_react.default.createElement(
       Button,
       {
         size: "sm",
@@ -1172,7 +1192,46 @@
         "aria-label": "Remove Item"
       },
       /* @__PURE__ */ import_react.default.createElement("i", { className: "fa fa-trash text-danger" })
-    ))));
+    ))), /* @__PURE__ */ import_react.default.createElement(Row, { className: "mb-2" }, /* @__PURE__ */ import_react.default.createElement(Col, { xs: 1 }), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 10 }, /* @__PURE__ */ import_react.default.createElement(Form, { className: "d-flex flex-wrap gap-2 align-items-center" }, /* @__PURE__ */ import_react.default.createElement(Form.Group, { className: "mb-0" }, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: `status-${item.id}`, className: "me-1 small" }, "Statut"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: `status-${item.id}`,
+        as: "select",
+        size: "sm",
+        value: status,
+        onChange: onStatusChange,
+        "aria-label": "Statut",
+        style: { width: "auto" }
+      },
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "todo" }, "\xC0 faire"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "in_progress" }, "En cours"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "done" }, "Termin\xE9")
+    )), /* @__PURE__ */ import_react.default.createElement(Form.Group, { className: "mb-0" }, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: `priority-${item.id}`, className: "me-1 small" }, "Priorit\xE9"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: `priority-${item.id}`,
+        as: "select",
+        size: "sm",
+        value: priority,
+        onChange: onPriorityChange,
+        "aria-label": "Priorit\xE9",
+        style: { width: "auto" }
+      },
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "low" }, "Basse"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "medium" }, "Moyenne"),
+      /* @__PURE__ */ import_react.default.createElement("option", { value: "high" }, "Haute")
+    )), /* @__PURE__ */ import_react.default.createElement(Form.Group, { className: "mb-0" }, /* @__PURE__ */ import_react.default.createElement(Form.Label, { htmlFor: `dueDate-${item.id}`, className: "me-1 small" }, "\xC9ch\xE9ance"), /* @__PURE__ */ import_react.default.createElement(
+      Form.Control,
+      {
+        id: `dueDate-${item.id}`,
+        type: "date",
+        size: "sm",
+        value: dueDate,
+        onChange: onDueDateChange,
+        "aria-label": "Date d'\xE9ch\xE9ance",
+        style: { width: "auto" }
+      }
+    )))), /* @__PURE__ */ import_react.default.createElement(Col, { xs: 1 })));
   }
   var root = document.getElementById("root");
   if (root) {
