@@ -7,6 +7,9 @@ const ITEM: Item = {
   id: "7aef3d7c-d301-4846-8358-2a91ec9d6be3",
   name: "Test",
   completed: false,
+  status: "todo",
+  priority: "medium",
+  dueDate: null,
 };
 
 beforeEach(async () => {
@@ -54,5 +57,18 @@ describe("repository contract (InMemory)", () => {
 
     const item = await repo.getItem(ITEM.id);
     expect(item).toEqual(ITEM);
+  });
+
+  test("updates status and dueDate and persists", async () => {
+    await repo.storeItem(ITEM);
+
+    await repo.updateItem(ITEM.id, {
+      status: "in_progress",
+      dueDate: "2025-12-31",
+    });
+
+    const item = await repo.getItem(ITEM.id);
+    expect(item?.status).toBe("in_progress");
+    expect(item?.dueDate).toBe("2025-12-31");
   });
 });

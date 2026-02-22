@@ -1,12 +1,7 @@
 import type { Request, Response } from "express";
 import getItems from "../../src/routes/getItems";
 import type { ItemRepository } from "../../src/ports/itemRepository";
-
-interface Item {
-  id: string;
-  name: string;
-  completed: boolean;
-}
+import type { Item } from "../../src/ports/itemRepository";
 
 const createMockRepo = (): jest.Mocked<ItemRepository> => ({
   init: jest.fn().mockResolvedValue(undefined),
@@ -30,7 +25,16 @@ describe("getItems", () => {
   });
 
   test("it gets items correctly", async () => {
-    const ITEMS: Item[] = [{ id: "12345", name: "item", completed: false }];
+    const ITEMS: Item[] = [
+      {
+        id: "12345",
+        name: "item",
+        completed: false,
+        status: "todo",
+        priority: "medium",
+        dueDate: null,
+      },
+    ];
     const req = {} as Request;
     const res = createRes();
     const mockRepo = createMockRepo();

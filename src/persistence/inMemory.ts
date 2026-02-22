@@ -1,4 +1,4 @@
-import type { Item, ItemRepository } from "../ports/itemRepository";
+import type { Item, ItemRepository, ItemUpdate } from "../ports/itemRepository";
 
 const store = new Map<string, Item>();
 
@@ -22,10 +22,7 @@ async function storeItem(item: Item): Promise<void> {
   store.set(item.id, item);
 }
 
-async function updateItem(
-  id: string,
-  item: { name: string; completed: boolean }
-): Promise<void> {
+async function updateItem(id: string, item: ItemUpdate): Promise<void> {
   const existing = store.get(id);
   if (!existing) return;
   store.set(id, { ...existing, ...item });
