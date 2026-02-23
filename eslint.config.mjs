@@ -1,13 +1,13 @@
 "use strict";
 
-const tsRaw = require("@typescript-eslint/eslint-plugin/use-at-your-own-risk/raw-plugin");
-const jestPlugin = require("eslint-plugin-jest");
-const reactPlugin = require("eslint-plugin-react");
+import tsRaw from "@typescript-eslint/eslint-plugin/use-at-your-own-risk/raw-plugin";
+import jestPlugin from "eslint-plugin-jest";
+import reactPlugin from "eslint-plugin-react";
 
 const flatRecommendedKey = "flat/recommended";
 const tsRecommended = tsRaw.flatConfigs[flatRecommendedKey];
 
-module.exports = [
+export default [
   {
     ignores: [
       "node_modules/**",
@@ -19,13 +19,6 @@ module.exports = [
     ],
   },
   ...tsRecommended,
-  {
-    // Phase 5: project uses CommonJS require(); ESM migration out of scope.
-    // TODO: remove this rule when we migrate to ESM.
-    rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
   {
     files: ["spec/**/*.ts"],
     plugins: { jest: jestPlugin },

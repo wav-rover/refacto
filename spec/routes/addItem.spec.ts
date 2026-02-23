@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import type { Item } from "../../src/ports/itemRepository";
 import { Priority, Status } from "../../src/ports/itemRepository";
-const addItem = require("../../src/routes/addItem");
-const { v4: uuid } = require("uuid");
+import addItem from "../../src/routes/addItem";
+import { v4 as uuid } from "uuid";
 
 jest.mock("uuid", () => ({ v4: jest.fn() }));
 

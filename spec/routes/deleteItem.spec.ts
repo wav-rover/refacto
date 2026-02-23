@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-const deleteItem = require("../../src/routes/deleteItem");
+import deleteItem from "../../src/routes/deleteItem";
 
 interface Item {
   id: string;

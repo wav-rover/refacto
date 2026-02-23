@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { Item } from "../../src/ports/itemRepository";
 import { Priority, Status } from "../../src/ports/itemRepository";
-const updateItem = require("../../src/routes/updateItem");
+import updateItem from "../../src/routes/updateItem";
 
 const createMockRepo = () => ({
   init: jest.fn(),

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-const login = require("../../src/routes/login");
+import login from "../../src/routes/login";
 
 const createRes = (): Response =>
   ({

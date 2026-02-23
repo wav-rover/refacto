@@ -1,6 +1,8 @@
-const waitPort = require("wait-port");
-const fs = require("fs");
-const mysql = require("mysql2");
+import fs from "fs";
+import mysql from "mysql2";
+import waitPort from "wait-port";
+import type { Item, ItemUpdate } from "../ports/itemRepository";
+import { Priority, Status } from "../ports/itemRepository";
 
 const {
   MYSQL_HOST: HOST,
@@ -13,16 +15,24 @@ const {
   MYSQL_DB_FILE: DB_FILE,
 } = process.env;
 
-interface Item {
-  id: string;
-  name: string;
-  completed: boolean;
-}
-
 interface ItemRow {
   id: string;
   name: string;
   completed: number;
+  status?: string;
+  priority?: string;
+  dueDate?: string | null;
+}
+
+function mapRow(row: ItemRow): Item {
+  return {
+    id: row.id,
+    name: row.name,
+    completed: row.completed === 1,
+    status: (row.status ?? Status.Todo) as Item["status"],
+    priority: (row.priority ?? Priority.Medium) as Item["priority"],
+    dueDate: row.dueDate ?? null,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,13 +90,7 @@ async function getItems(): Promise<Item[]> {
       "SELECT * FROM todo_items",
       (err: Error | null, rows: ItemRow[]) => {
         if (err) return rej(err);
-        acc(
-          rows.map((item) =>
-            Object.assign({}, item, {
-              completed: item.completed === 1,
-            })
-          )
-        );
+        acc(rows.map(mapRow));
       }
     );
   });
@@ -99,13 +103,7 @@ async function getItem(id: string): Promise<Item | undefined> {
       [id],
       (err: Error | null, rows: ItemRow[]) => {
         if (err) return rej(err);
-        acc(
-          rows.map((item) =>
-            Object.assign({}, item, {
-              completed: item.completed === 1,
-            })
-          )[0]
-        );
+        acc(rows.map(mapRow)[0]);
       }
     );
   });
@@ -124,14 +122,11 @@ async function storeItem(item: Item): Promise<void> {
   });
 }
 
-async function updateItem(
-  id: string,
-  item: { name: string; completed: boolean }
-): Promise<void> {
+async function updateItem(id: string, item: ItemUpdate): Promise<void> {
   return new Promise((acc, rej) => {
     pool.query(
       "UPDATE todo_items SET name=?, completed=? WHERE id=?",
-      [item.name, item.completed ? 1 : 0, id],
+      [item.name ?? "", (item.completed ?? false) ? 1 : 0, id],
       (err: Error | null) => {
         if (err) return rej(err);
         acc();
@@ -153,7 +148,7 @@ async function removeItem(id: string): Promise<void> {
   });
 }
 
-module.exports = {
+export default {
   init,
   teardown,
   getItems,
@@ -162,5 +157,3 @@ module.exports = {
   updateItem,
   removeItem,
 };
-
-export {};

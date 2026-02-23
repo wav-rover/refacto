@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { Item, ItemRepository } from "../ports/itemRepository";
 import { Priority, Status } from "../ports/itemRepository";
-const { v4: uuid } = require("uuid");
+import { v4 as uuid } from "uuid";
 
 function addItem(repo: ItemRepository) {
   return async (req: Request, res: Response): Promise<void> => {

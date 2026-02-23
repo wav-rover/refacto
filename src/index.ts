@@ -1,14 +1,15 @@
-const express = require("express");
-const session = require("express-session");
+import express from "express";
+import session from "express-session";
+import { createRepository } from "./persistence";
+import getItems from "./routes/getItems";
+import addItem from "./routes/addItem";
+import updateItem from "./routes/updateItem";
+import deleteItem from "./routes/deleteItem";
+import login from "./routes/login";
+import logout from "./routes/logout";
+import requireAuth from "./middleware/requireAuth";
+
 const app = express();
-const { createRepository } = require("./persistence");
-const getItems = require("./routes/getItems");
-const addItem = require("./routes/addItem");
-const updateItem = require("./routes/updateItem");
-const deleteItem = require("./routes/deleteItem");
-const login = require("./routes/login");
-const logout = require("./routes/logout");
-const requireAuth = require("./middleware/requireAuth");
 
 const repo = createRepository();
 const sessionSecret = process.env.SESSION_SECRET ?? "dev-secret";

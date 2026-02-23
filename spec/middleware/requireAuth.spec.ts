@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-const requireAuth = require("../../src/middleware/requireAuth");
+import requireAuth from "../../src/middleware/requireAuth";
 
 const createRes = (): Response =>
   ({
