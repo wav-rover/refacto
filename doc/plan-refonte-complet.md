@@ -1,6 +1,6 @@
 # Plan de refonte complet
 
-**Où on en est :** Phase 6 terminée. Prêt pour la phase 7
+**Où on en est :** Phase 7 terminée.
 
 ---
 
