@@ -29,6 +29,8 @@
   - Écoute des événements
   - Déclenchement conditionnel des notifications
 
+Un service d’authentification dédié gère les utilisateurs et expose un `userId` fiable aux autres services.
+
 ## Nouveau modèle métier
 
 ### User
@@ -70,6 +72,15 @@ Chaque service doit :
 - Avoir son propre `package.json`
 - Avoir son propre `Dockerfile`
 - Être totalement isolé (aucun import inter-service)
+
+## Service d’authentification (pré-requis)
+
+- Un service `auth-service` (ou `user-service`) est disponible.
+- Les utilisateurs sont stockés en base.
+- L’authentification expose au minimum :
+  - inscription (`register`)
+  - connexion (`login`)
+  - récupération de l’utilisateur courant (`me`)
 
 ## Message Broker
 
