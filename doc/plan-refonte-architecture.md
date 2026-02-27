@@ -116,6 +116,11 @@ Chaque service doit :
   - les routes HTTP
   - les repositories / adaptateurs de persistance
 
+### Adaptation progressive de l’existant
+
+- On n’adapte pas immédiatement tous les cas d’usage existants pour publier des événements.
+- Dans le monolithe actuel, seule la logique d’`update item` est modifiée pour émettre des événements.
+
 ---
 
 # 4. Communication événementielle (Event-Driven)
@@ -154,14 +159,23 @@ Chaque service doit :
 Une notification est déclenchée uniquement si :
 actionUserId !== targetUserId
 
-Exemples :
+### Cas de notification
 
+- Affectation d’une tâche (`TaskAssigned`)
+- Fin de projet (`ProjectClosed`)
+- Tâche terminée (`TaskCompleted`)
+- Tâche réouverte (`TaskReopened`)
+
+### Exemples
+
+- User A assigne une tâche à User B → notification envoyée
 - User A termine une tâche assignée à User B → notification envoyée
 - User B termine sa propre tâche → aucune notification
 
-## Localisation de la logique
+### Localisation de la logique
 
 - La règle conditionnelle doit être dans `notification-service`
+- `notification-service` logge les events
 - `task-service` publie toujours l’événement sans logique de notification
 
 Principe respecté :
@@ -242,3 +256,5 @@ Services indépendants :
 - Communication asynchrone
 - Découplage fort
 - Tests adaptés à architecture distribuée
+
+À la fin du projet, ajouter dans la documentation une context map entre entités et aggregate roots, simple mais suffisante pour avoir une représentation globale.
