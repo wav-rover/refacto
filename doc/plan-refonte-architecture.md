@@ -53,8 +53,10 @@ Un service d’authentification dédié gère les utilisateurs et expose un `use
 - projectId
 - assignedTo (userId)
 - createdBy (userId)
-- completed
-- completedAt
+- completed (boolean)
+- status (`todo`, `in_progress`, `done`)
+- priority (`low`, `medium`, `high`)
+- dueDate (optionnelle, date d’échéance ou `null`)
 
 ---
 
@@ -106,6 +108,42 @@ Chaque service doit :
 
 - Un utilisateur ne peut être assigné à une tâche que s’il appartient au projet.
 - La clôture d’un projet est automatique si toutes les tâches sont terminées.
+- Un membre ne peut être retiré d’un projet que s’il n’a plus aucune tâche de ce projet qui lui est assignée (quel que soit le statut des tâches).
+
+## Règles métier majeures par service
+
+### Project-service
+
+Voir détails : [règles métier Project-service](./regles-metier-project-service.md).
+
+- Un projet possède un responsable (`chef de projet`) clairement identifié.
+- Seul le chef de projet peut modifier ou supprimer un projet, ajouter des membres et demander la clôture d’un projet.
+- Un projet clôturé n’est plus modifiable (membres, métadonnées, tâches)
+
+### Task-service
+
+Voir détails : [règles métier Task-service](./regles-metier-task-service.md).
+
+- Une tâche appartient toujours à un projet et possède au plus un utilisateur assigné.
+- Une tâche ne peut être créée ou assignée qu’à des membres du projet concerné.
+- Les changements majeurs d’une tâche (création, affectation, clôture, réouverture, suppression) passent par des use cases applicatifs qui publient des événements métier.
+- Une tâche ne peut pas être réouverte si le projet est clôturé.
+
+### Notification-service
+
+Voir détails : [règles métier Notification-service](./regles-metier-notification-service.md).
+
+- Envoie des notifications uniquement en réaction aux événements métier (aucun appel direct depuis les autres services).
+- Applique une règle générale `actionUserId !== targetUserId` pour éviter les auto-notifications.
+- Détermine les destinataires en fonction du type d’événement (chef de projet, utilisateur assigné, membre ajouté, etc.).
+
+### Auth-service / User-service
+
+Voir détails : [règles métier Auth-service / User-service](./regles-metier-auth-service.md).
+
+- Gère le cycle de vie des utilisateurs (création, authentification, désactivation/suppression).
+- Expose un `userId` fiable et un contexte d’identité consommé par les autres services.
+- Ne contient pas de logique métier liée aux projets ou aux tâches, uniquement l’identité et les droits globaux.
 
 ## Publication des événements métier au niveau des use cases
 
