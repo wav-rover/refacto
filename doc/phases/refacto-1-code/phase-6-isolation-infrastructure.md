@@ -2,7 +2,7 @@
 
 Objectif : créer des ports (interfaces) pour la persistance, deux implémentations (SqliteRepository, InMemoryRepository), injecter l'implémentation selon l'environnement, et ajouter un test de non-régression pour interdire sqlite3 en test.
 
-Référence : section « 6. Isolation de l'infrastructure » du [plan de refonte](./plan-refonte-complet.md). Ne faire que ce qui est dans cette section ; pas de refactoring métier au-delà.
+Référence : section « 6. Isolation de l'infrastructure » du [plan de refonte](../../plan-refonte-complet.md). Ne faire que ce qui est dans cette section ; pas de refactoring métier au-delà.
 
 Chacun travaille sur son périmètre. Ordre recommandé : Tristan → Jeremy → Paul (Paul peut être en parallèle de Jeremy une fois l'interface figée).
 

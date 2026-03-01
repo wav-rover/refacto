@@ -40,7 +40,7 @@
 
 ## 5. Hygiène du projet
 
-→ **Documentation détaillée :** [phase-5-hygiene-projet.md](./phases/phase-5-hygiene-projet.md)
+→ **Documentation détaillée :** [phase-5-hygiene-projet.md](./phases/refacto-1-code/phase-5-hygiene-projet.md)
 
 - Gestion des dépendances :
   - Séparer :

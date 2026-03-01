@@ -12,16 +12,24 @@ Index de la documentation technique et du plan de refonte.
 
 ## Phases (étapes de refactorisation)
 
+### Refacto 1 – Code (monolithe)
+
 | Fichier | Description |
 |---------|-------------|
-| [phase-1-repartition-taches.md](./phases/phase-1-repartition-taches.md) | Répartition des tâches (tests) |
-| [phase-2-installation-et-verification.md](./phases/phase-2-installation-et-verification.md) | Installation et vérification |
-| [phase-3-introduction-typescript.md](./phases/phase-3-introduction-typescript.md) | Introduction TypeScript |
-| [phase-4-documentation.md](./phases/phase-4-documentation.md) | Documentation |
-| [phase-4-mise-a-jour-node.md](./phases/phase-4-mise-a-jour-node.md) | Mise à jour Node |
-| [phase-5-hygiene-projet.md](./phases/phase-5-hygiene-projet.md) | Hygiène du projet |
-| [phase-6-isolation-infrastructure.md](./phases/phase-6-isolation-infrastructure.md) | Isolation infrastructure |
-| [phase-7-statut-priorite-date-auth.md](./phases/phase-7-statut-priorite-date-auth.md) | Statut, priorité, date, auth |
+| [phase-1-repartition-taches.md](./phases/refacto-1-code/phase-1-repartition-taches.md) | Répartition des tâches (tests) |
+| [phase-2-installation-et-verification.md](./phases/refacto-1-code/phase-2-installation-et-verification.md) | Installation et vérification |
+| [phase-3-introduction-typescript.md](./phases/refacto-1-code/phase-3-introduction-typescript.md) | Introduction TypeScript |
+| [phase-4-documentation.md](./phases/refacto-1-code/phase-4-documentation.md) | Documentation |
+| [phase-4-mise-a-jour-node.md](./phases/refacto-1-code/phase-4-mise-a-jour-node.md) | Mise à jour Node |
+| [phase-5-hygiene-projet.md](./phases/refacto-1-code/phase-5-hygiene-projet.md) | Hygiène du projet |
+| [phase-6-isolation-infrastructure.md](./phases/refacto-1-code/phase-6-isolation-infrastructure.md) | Isolation infrastructure |
+| [phase-7-statut-priorite-date-auth.md](./phases/refacto-1-code/phase-7-statut-priorite-date-auth.md) | Statut, priorité, date, auth |
+
+### Refacto 2 – Architecture (microservices, event-driven)
+
+| Fichier | Description |
+|---------|-------------|
+| [phase-2-archi-coeur-technique-repartition-taches.md](./phases/refacto-2-archi/phase-2-archi-coeur-technique-repartition-taches.md) | Phase 2 – Cœur technique (structure, auth, broker) |
 
 ---
 

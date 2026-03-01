@@ -62,12 +62,15 @@ Un service d’authentification dédié gère les utilisateurs et expose un `use
 
 # 2. Mise en place du cœur technique
 
+Voir répartition et explication des tâches : [Phase 2 – Cœur technique – Répartition des tâches](./phases/refacto-2-archi/phase-2-archi-coeur-technique-repartition-taches.md).
+
 ## Structure du mono-repository
 
 /services
-/project-service
-/task-service
-/notification-service
+| /project-service
+| /task-service
+| /notification-service
+| /auth-service
 
 Chaque service doit :
 
