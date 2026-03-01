@@ -17,7 +17,7 @@ Chacun travaille en parallèle sur son périmètre. **Ordre recommandé :** stru
 
 ## Jeremy – Structure du mono-repository
 
-**Responsable :** Jeremy 
+**Responsable :** Jeremy
 
 **Périmètre :** création de l’arborescence et des squelettes des quatre services (project, task, notification, auth), sans logique métier.
 
@@ -54,7 +54,7 @@ Chacun travaille en parallèle sur son périmètre. **Ordre recommandé :** stru
 1. **Modèle utilisateur minimal**  
    Utilisateur avec : `id`, `email`, `password` (hashé), `createdAt`. Persistance (SQLite/Postgres/autre) locale au service.
 
-2. **Endpoints exposés**  
+2. **Endpoints exposés**
    - **Inscription** : `register` (ex. `POST /auth/register` ou `POST /users/register`) – création utilisateur.
    - **Connexion** : `login` (ex. `POST /auth/login`) – retourne un token ou une session permettant d’identifier l’utilisateur.
    - **Utilisateur courant** : `me` (ex. `GET /auth/me` ou `GET /users/me`) – à partir du token/session, retourne l’utilisateur connecté (au minimum `userId` fiable pour les autres services).
@@ -81,7 +81,10 @@ Chacun travaille en parallèle sur son périmètre. **Ordre recommandé :** stru
    Les services (project, task, notification, auth) doivent pouvoir atteindre le broker via une URL/host (ex. `REDIS_URL` ou `RABBITMQ_URL`) configurable (env ou `.env`). Documenter les variables attendues.
 
 3. **Compose multi-services**  
-   Dans `docker-compose.yml` : définir un service par application (auth-service, project-service, task-service, notification-service) en plus du broker. Chaque service utilise son `Dockerfile` (créés à la tâche structure), avec `depends_on` pour le broker si besoin. Exposer les ports HTTP pour chaque service (ex. auth:3001, project:3002, task:3003, notification:3004).
+   Dans `docker-compose.yml` : définir un service par application (auth-service, project-service, task-service, notification-service) en plus du broker. Chaque service utilise son `Dockerfile` (créés à la tâche structure), avec `depends_on` pour le broker si besoin. Exposer les ports HTTP pour chaque service (ex. auth:3001, project:3002, task:3003, notification:3004).  
+   **À ne pas oublier (Docker Desktop) :**
+   - Donner un **nom de projet** au compose (ex. `name: todo` en haut du fichier ou `docker compose -p todo up`) afin que les conteneurs soient regroupés sous une même catégorie « todo » dans Docker Desktop.
+   - Les services du compose ont déjà des noms explicites (auth-service, project-service, etc.) ; sans compose, un simple `docker run` attribue des noms aléatoires (ex. `priceless_gould`). Le compose évite cela en définissant chaque service avec un nom clair.
 
 4. **Principe à respecter et documenter**  
    Communication inter-services **uniquement via événements** (à implémenter en phase 4) ; **aucun appel HTTP direct** entre project-service, task-service, notification-service. Le documenter dans les règles d’architecture ou dans ce fichier.
