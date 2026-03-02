@@ -11,7 +11,7 @@ Arborescence des services de l’architecture phase 2. Chaque service est isolé
 - `notification-service/` — écoute des événements et notifications
 - `auth-service/` — authentification et utilisateurs
 
-**État actuel :** `project-service` et `task-service` sont en place. Les deux autres services seront ajoutés plus tard sur le même modèle.
+**État actuel :** les quatre services sont en place (`project-service`, `task-service`, `notification-service`, `auth-service`).
 
 ## Règle d’isolation
 
@@ -85,6 +85,70 @@ docker run -p 3002:3002 task-service
 
 Puis ouvrir http://localhost:3002/
 
+## notification-service
+
+Service squelette (sans logique métier) : démarre et répond sur `GET /`.
+
+### Lancer en local
+
+```bash
+cd services/notification-service
+npm install
+npm run build
+npm start
+```
+
+Le port est configuré via la variable d'environnement `PORT` (fichier `.env` ou `.env.example`). Par défaut : **3003**. Pour surcharger : `PORT=3006 npm start`.
+
+### Développement
+
+```bash
+npm run dev
+```
+
+### Build Docker
+
+Le `.env` n'est pas copié dans l'image (voir `.dockerignore`), donc le port par défaut du code (**3003**) est utilisé. Aucun `-e PORT` nécessaire.
+
+```bash
+docker build -t notification-service ./services/notification-service
+docker run -p 3003:3003 notification-service
+```
+
+Puis ouvrir http://localhost:3003/
+
+## auth-service
+
+Service squelette (sans logique métier) : démarre et répond sur `GET /`. L’authentification (register, login, me) sera implémentée dans la phase 2 (tâche Jeremy – Service d’authentification).
+
+### Lancer en local
+
+```bash
+cd services/auth-service
+npm install
+npm run build
+npm start
+```
+
+Le port est configuré via la variable d'environnement `PORT` (fichier `.env` ou `.env.example`). Par défaut : **3004**. Pour surcharger : `PORT=3007 npm start`.
+
+### Développement
+
+```bash
+npm run dev
+```
+
+### Build Docker
+
+Le `.env` n'est pas copié dans l'image (voir `.dockerignore`), donc le port par défaut du code (**3004**) est utilisé. Aucun `-e PORT` nécessaire.
+
+```bash
+docker build -t auth-service ./services/auth-service
+docker run -p 3004:3004 auth-service
+```
+
+Puis ouvrir http://localhost:3004/
+
 ---
 
-Pour lancer les deux services en parallèle : `docker run -p 3001:3001 project-service` et `docker run -p 3002:3002 task-service`.
+Pour lancer les quatre services en parallèle : `docker run -p 3001:3001 project-service`, `docker run -p 3002:3002 task-service`, `docker run -p 3003:3003 notification-service` et `docker run -p 3004:3004 auth-service`.
