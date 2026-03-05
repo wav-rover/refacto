@@ -1,6 +1,6 @@
 # Modèle User – auth-service (Step 1)
 
-Ce service gère les utilisateurs de façon dédiée (séparée du monolithe).
+Ce service gère les utilisateurs de façon dédiée (séparée du monolithe) et expose les opérations d’authentification minimales : `register`, `login`, `me`.
 
 ## Contraintes
 
@@ -15,5 +15,5 @@ Ce service gère les utilisateurs de façon dédiée (séparée du monolithe).
 
 Ce contrat est interne à `auth-service` mais doit rester **stable** pour faciliter :
 
-- l'implémentation ultérieure de `register` / `login` / `me` ;
+- l’implémentation et l’évolution de `register` / `login` / `me` ;
 - la migration progressive de l'authentification du monolithe vers `auth-service`.

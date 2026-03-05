@@ -2,6 +2,8 @@
 
 Arborescence des services de l’architecture phase 2. Chaque service est isolé : son propre `package.json`, son propre `Dockerfile`, aucune dépendance directe vers un autre service.
 
+**Ports et persistance :** chaque service a ses propres ports (interfaces) et sa couche persistance, sur le modèle du monolithe. Voir [ports-et-persistence.md](./ports-et-persistence.md) pour le détail (auth-service en référence).
+
 ## Arborescence cible
 
 À terme, sous `services/` :
@@ -140,14 +142,22 @@ npm run dev
 
 ### Build Docker
 
-Le `.env` n'est pas copié dans l'image (voir `.dockerignore`), donc le port par défaut du code (**3004**) est utilisé. Aucun `-e PORT` nécessaire.
+Le `.env` n'est pas copié dans l'image (voir `.dockerignore`), donc le port par défaut du code (**3004**) est utilisé. La base SQLite est stockée dans le conteneur sous `/app/data/auth-users.db` (variable `AUTH_SQLITE_DB_LOCATION`). Pour persister les données entre redémarrages, monter un volume sur `/app/data` :
 
 ```bash
 docker build -t auth-service ./services/auth-service
+docker run -p 3004:3004 -v auth-data:/app/data auth-service
+```
+
+Pour lancer sans volume (données éphémères) :
+
+```bash
 docker run -p 3004:3004 auth-service
 ```
 
 Puis ouvrir http://localhost:3004/
+
+En production, définir `SESSION_SECRET` : `docker run -p 3004:3004 -e SESSION_SECRET=xxx -v auth-data:/app/data auth-service`.
 
 ---
 

@@ -3,13 +3,17 @@ import path from "path";
 import sqlite3Pkg from "sqlite3";
 import crypto from "crypto";
 import type { NewUser, User, UserId } from "../domain/user";
-import type { UserRepository } from "./user-repository";
+import type { UserRepository } from "../ports/userRepository";
 
 const sqlite3 = sqlite3Pkg.verbose();
 
 const getDatabaseLocation = (): string =>
   process.env.AUTH_SQLITE_DB_LOCATION ??
-  path.join(process.cwd(), "data", "auth-users.db");
+  path.join(
+    path.resolve(__dirname, "..", "..", "..", ".."),
+    "data",
+    "auth-users.db"
+  );
 
 type Database = sqlite3Pkg.Database;
 
@@ -34,7 +38,7 @@ function mapRow(row: UserRow): User {
 function init(): Promise<void> {
   const location = getDatabaseLocation();
   const dirName = path.dirname(location);
-  if (!fs.existsSync(dirName)) {
+  if (location !== ":memory:" && !fs.existsSync(dirName)) {
     fs.mkdirSync(dirName, { recursive: true });
   }
 
@@ -58,6 +62,11 @@ function init(): Promise<void> {
           if (createErr) {
             reject(createErr);
             return;
+          }
+
+          if (process.env.NODE_ENV !== "test") {
+            // eslint-disable-next-line no-console
+            console.log(`[auth-service] Using sqlite database at ${location}`);
           }
 
           resolve();
@@ -171,7 +180,7 @@ function findById(id: UserId): Promise<User | null> {
   });
 }
 
-const sqliteUserRepository: UserRepository = {
+const sqliteRepository: UserRepository = {
   init,
   teardown,
   create,
@@ -179,4 +188,4 @@ const sqliteUserRepository: UserRepository = {
   findById,
 };
 
-export default sqliteUserRepository;
+export default sqliteRepository;

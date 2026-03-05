@@ -1,15 +1,15 @@
-import sqliteUserRepository from "../../services/auth-service/src/persistence/sqlite-user-repository";
-import type { NewUser } from "../../services/auth-service/src/domain/user";
+import inMemoryRepository from "../../services/auth-service/src/persistence/inMemory";
+import type { NewUser } from "../../services/auth-service/src/ports/userRepository";
 
-describe("sqliteUserRepository", () => {
+const repo = inMemoryRepository;
+
+describe("UserRepository contract (inMemory)", () => {
   beforeAll(async () => {
-    process.env.AUTH_SQLITE_DB_LOCATION =
-      "/tmp/auth-service-users-test.db-" + Date.now().toString();
-    await sqliteUserRepository.init();
+    await repo.init();
   });
 
   afterAll(async () => {
-    await sqliteUserRepository.teardown();
+    await repo.teardown();
   });
 
   it("creates and retrieves a user by email and id", async () => {
@@ -18,10 +18,10 @@ describe("sqliteUserRepository", () => {
       passwordHash: "hash",
     };
 
-    const created = await sqliteUserRepository.create(newUser);
+    const created = await repo.create(newUser);
 
-    const byEmail = await sqliteUserRepository.findByEmail(newUser.email);
-    const byId = await sqliteUserRepository.findById(created.id);
+    const byEmail = await repo.findByEmail(newUser.email);
+    const byId = await repo.findById(created.id);
 
     expect(byEmail).not.toBeNull();
     expect(byId).not.toBeNull();

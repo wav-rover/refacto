@@ -1,5 +1,7 @@
 import type { NewUser, User, UserId } from "../domain/user";
 
+export type { NewUser, User, UserId };
+
 export interface UserRepository {
   init(): Promise<void>;
   teardown(): Promise<void>;

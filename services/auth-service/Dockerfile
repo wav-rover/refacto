@@ -17,6 +17,9 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
+RUN mkdir -p /app/data
+ENV AUTH_SQLITE_DB_LOCATION=/app/data/auth-users.db
+
 EXPOSE 3004
 
 CMD ["node", "dist/index.js"]
