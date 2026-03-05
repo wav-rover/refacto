@@ -45,7 +45,7 @@ Chacun travaille en parallèle sur son périmètre. **Ordre recommandé :** stru
 
 ## Jeremy – Service d’authentification (pré-requis)
 
-**Responsable :** Jeremy (peut enchaîner après la structure s’il en est responsable).
+**Responsable :** Jeremy.
 
 **Périmètre :** `auth-service` (dans le dossier créé à la tâche structure) : inscription, connexion et récupération de l’utilisateur courant. Utilisateurs stockés en base.
 

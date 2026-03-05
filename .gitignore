@@ -9,3 +9,5 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 storageState.json
+
+/data/
