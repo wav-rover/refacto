@@ -10,7 +10,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "node -r ts-node/register src/index.ts",
-    "test": "echo \"no tests yet\""
+    "test": "cross-env NODE_ENV=test jest"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -20,7 +20,11 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.14",
     "@types/node": "^25.3.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "cross-env": "^7.0.3"
   }
 }
