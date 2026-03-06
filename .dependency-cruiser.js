@@ -18,6 +18,38 @@ module.exports = {
       },
     },
     {
+      name: "no-inter-service-import-project",
+      severity: "error",
+      comment:
+        "project-service ne doit pas importer de code d'un autre service (communication via broker uniquement).",
+      from: { path: "^services/project-service/" },
+      to: { path: "^services/(task-service|notification-service|auth-service)/" },
+    },
+    {
+      name: "no-inter-service-import-task",
+      severity: "error",
+      comment:
+        "task-service ne doit pas importer de code d'un autre service (communication via broker uniquement).",
+      from: { path: "^services/task-service/" },
+      to: { path: "^services/(project-service|notification-service|auth-service)/" },
+    },
+    {
+      name: "no-inter-service-import-notification",
+      severity: "error",
+      comment:
+        "notification-service ne doit pas importer de code d'un autre service (communication via broker uniquement).",
+      from: { path: "^services/notification-service/" },
+      to: { path: "^services/(project-service|task-service|auth-service)/" },
+    },
+    {
+      name: "no-inter-service-import-auth",
+      severity: "error",
+      comment:
+        "auth-service ne doit pas importer de code d'un autre service (communication via broker uniquement).",
+      from: { path: "^services/auth-service/" },
+      to: { path: "^services/(project-service|task-service|notification-service)/" },
+    },
+    {
       name: "no-sqlite-in-tests",
       severity: "error",
       comment:

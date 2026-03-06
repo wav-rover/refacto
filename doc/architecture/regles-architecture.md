@@ -66,3 +66,25 @@ npm run lint:deps
 ```
 
 Cette commande doit être exécutée dans la CI pour bloquer toute régression (réintroduction de sqlite3 dans les tests).
+
+---
+
+## Règle : pas d’appels HTTP directs entre services (Phase 2+)
+
+### Périmètre
+
+Les services backend sous `services/` (`project-service`, `task-service`, `notification-service`, `auth-service`).
+
+### Interdit
+
+- Les services ne doivent **pas** faire d’appels HTTP directs les uns vers les autres (ex. `project-service` → `task-service` en HTTP).
+- Ils ne doivent pas non plus importer de code d’un autre service (`import ... from '../../task-service'`, etc.).
+
+### Objectif
+
+La communication inter-services se fait via le **message broker** (Redis en phase 2) et des événements métier publiés/consommés. Les services restent découplés ; un gateway / edge pourra plus tard exposer une API unifiée vers l’extérieur.
+
+### Application
+
+- Documentée dans `services/ports-et-persistence.md`.
+- Vérifiée progressivement via dependency-cruiser : des règles `no-inter-service-import` interdisent à chaque service d’importer du code d’un autre service (`services/<nom-service>/`).

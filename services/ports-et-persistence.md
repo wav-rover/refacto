@@ -14,7 +14,10 @@ On bascule **service par service** le stockage des bases SQLite (et autres fichi
   - **InMemory** pour les tests (pas de DB, pas de fichier).
 - **Factory** : un module (ex. `persistence/index.ts`) qui choisit l’implémentation selon l’environnement (ex. `NODE_ENV === "test"` → inMemory, sinon SQLite). Les routes reçoivent le repository par injection (ex. `register(repo)`).
 
-Aucun import inter-service : chaque service ne dépend que de son propre code et de son `node_modules`.
+## Communication inter-services
+
+- Aucun import inter-service : chaque service ne dépend que de son propre code et de son `node_modules`.
+- Pas d’appels HTTP directs entre services (project, task, notification, auth) : la communication métier se fera **via le broker de messages** (Redis en phase 2), sur la base d’événements publiés/consommés. Les services restent ainsi découplés ; un éventuel gateway/API edge sera responsable d’orchestrer les appels HTTP externes.
 
 ## Référence : auth-service
 
