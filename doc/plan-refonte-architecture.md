@@ -97,6 +97,8 @@ Chaque service doit :
 
 # 3. Implémentation des cas d’usage métier
 
+Voir répartition et explication des tâches : [Phase 3 – Cas d’usage – Répartition des tâches](./phases/refacto-2-archi/phase-3-cas-usage-repartition-taches.md).
+
 ## Cas d’usage principaux
 
 1. Création d’un projet
