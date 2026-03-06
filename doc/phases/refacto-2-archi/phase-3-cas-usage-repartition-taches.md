@@ -53,6 +53,8 @@ Référence : section « 3. Implémentation des cas d’usage métier » du [pla
 
 **À faire (quoi) :**
 
+**Important :** on ne réinvente pas la roue. On **reprend ce qui existe déjà dans le monolithe** (structure de projet, patterns ports/persistence, handlers/routes) et on **adapte uniquement** ce qui doit l’être au découpage `task-service` et aux règles métier (modèle Task, invariants, endpoints).
+
 1. **Modèle et persistance**
    - Définir le modèle **Task** (id, title, projectId, createdBy, assignedTo, completed, status, priority, dueDate, etc.) aligné sur [règles métier Task-service](../../regles-metier-task-service.md).
    - Mettre en place la persistance (port + SQLite + InMemory), même pattern que auth-service et project-service.
