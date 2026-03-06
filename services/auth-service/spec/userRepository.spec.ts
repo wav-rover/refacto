@@ -1,9 +1,9 @@
-import inMemoryRepository from "../../services/auth-service/src/persistence/inMemory";
-import type { NewUser } from "../../services/auth-service/src/ports/userRepository";
+import { createRepository } from '../src/persistence';
+import type { NewUser } from '../src/ports/userRepository';
 
-const repo = inMemoryRepository;
+const repo = createRepository();
 
-describe("UserRepository contract (inMemory)", () => {
+describe('UserRepository contract (inMemory)', () => {
   beforeAll(async () => {
     await repo.init();
   });
@@ -12,10 +12,10 @@ describe("UserRepository contract (inMemory)", () => {
     await repo.teardown();
   });
 
-  it("creates and retrieves a user by email and id", async () => {
+  it('creates and retrieves a user by email and id', async () => {
     const newUser: NewUser = {
-      email: "test@example.com",
-      passwordHash: "hash",
+      email: 'test@example.com',
+      passwordHash: 'hash',
     };
 
     const created = await repo.create(newUser);

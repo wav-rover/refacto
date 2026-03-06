@@ -4,7 +4,12 @@ const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
   testMatch: ["**/spec/**/*.spec.{js,ts}"],
-  testPathIgnorePatterns: ["/node_modules/", "/tests/"],
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/tests/",
+    "/services/auth-service/spec/",
+    "/services/project-service/spec/",
+  ],
 };
 
 export default config;

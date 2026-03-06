@@ -17,6 +17,8 @@ services:
       - redis
     ports:
       - "3001:3001"
+    volumes:
+      - project-data:/app/data
 
   task-service:
     build:
@@ -59,4 +61,4 @@ services:
 
 volumes:
   auth-data:
-
+  project-data:

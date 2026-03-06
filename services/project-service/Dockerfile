@@ -17,6 +17,9 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+RUN mkdir -p /app/data
+ENV PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db
+
+EXPOSE 3001
 
 CMD ["node", "dist/index.js"]
