@@ -25,7 +25,7 @@ Référence : [Phase 2 – Cœur technique](../doc/phases/refacto-2-archi/phase-
 
 ## project-service
 
-Service squelette (sans logique métier) : démarre et répond sur `GET /`.
+Gestion des projets et des membres (phase 3). Endpoints : création projet, liste/détail, mise à jour, clôture, ajout/retrait de membres. L’utilisateur courant est identifié par le header **`X-User-Id`**. Persistance : SQLite ou InMemory (tests). Voir [project-service/README.md](./project-service/README.md) pour les endpoints et règles métier.
 
 ### Lancer en local
 
@@ -36,7 +36,7 @@ npm run build
 npm start
 ```
 
-Le port est configuré via la variable d’environnement `PORT` (fichier `.env` ou `.env.example`). Par défaut : **3001**. Pour surcharger : `PORT=3005 npm start`.
+Variables d’environnement : `PORT` (défaut **3001**), `PROJECT_SQLITE_DB_LOCATION` (optionnel). Tests : `npm test`.
 
 ### Développement
 
@@ -46,14 +46,14 @@ npm run dev
 
 ### Build Docker
 
-Le `.env` n’est pas copié dans l’image (voir `.dockerignore`), donc le port par défaut du code (**3001**) est utilisé. Aucun `-e PORT` nécessaire.
+Le `.env` n’est pas copié dans l’image (voir `.dockerignore`). Pour persister la base SQLite, monter un volume et définir `PROJECT_SQLITE_DB_LOCATION` :
 
 ```bash
 docker build -t project-service ./services/project-service
-docker run -p 3001:3001 project-service
+docker run -p 3001:3001 -v project-data:/app/data -e PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db project-service
 ```
 
-Puis ouvrir http://localhost:3001/
+Sans volume (données éphémères) : `docker run -p 3001:3001 project-service`. Puis http://localhost:3001/
 
 ## task-service
 
