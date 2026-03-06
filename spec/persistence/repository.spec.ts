@@ -23,7 +23,7 @@ afterEach(async () => {
 
 describe("repository contract (InMemory)", () => {
   test("initializes successfully", async () => {
-    await repo.init();
+    await expect(repo.init()).resolves.toBeUndefined();
   });
 
   test("stores item and retrieves it in list", async () => {
