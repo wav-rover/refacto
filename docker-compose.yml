@@ -1,0 +1,62 @@
+name: todo
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  project-service:
+    build:
+      context: ./services/project-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3001
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    ports:
+      - "3001:3001"
+
+  task-service:
+    build:
+      context: ./services/task-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3002
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    ports:
+      - "3002:3002"
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3003
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    ports:
+      - "3003:3003"
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3004
+      - SESSION_SECRET=${SESSION_SECRET:-dev-secret}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    ports:
+      - "3004:3004"
+    volumes:
+      - auth-data:/app/data
+
+volumes:
+  auth-data:
+

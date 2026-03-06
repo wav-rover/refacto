@@ -161,4 +161,21 @@ En production, définir `SESSION_SECRET` : `docker run -p 3004:3004 -e SESSION_S
 
 ---
 
-Pour lancer les quatre services en parallèle : `docker run -p 3001:3001 project-service`, `docker run -p 3002:3002 task-service`, `docker run -p 3003:3003 notification-service` et `docker run -p 3004:3004 auth-service`.
+## Docker Compose (phase 2 – broker + services)
+
+Pour lancer Redis et les quatre services ensemble en local :
+
+```bash
+cd /Users/jeremyd/ynov/refacto
+docker compose up --build
+```
+
+- Le projet compose est nommé `todo` (voir `docker-compose.yml` à la racine).
+- Les services sont exposés sur :
+  - `project-service` : http://localhost:3001
+  - `task-service` : http://localhost:3002
+  - `notification-service` : http://localhost:3003
+  - `auth-service` : http://localhost:3004
+- Redis est accessible sur `redis://localhost:6379` pour le debug (les services l’atteignent via l’host `redis`).
+
+Les variables d’environnement utilisées par `docker compose` peuvent être définies dans `.env` à la racine (voir `.env.example` pour les valeurs possibles, notamment `SESSION_SECRET` et `REDIS_URL`).
