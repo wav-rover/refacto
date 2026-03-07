@@ -12,8 +12,9 @@
     "test": "jest",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
+    "test:services": "cd services/auth-service && npm run test && cd ../project-service && npm run test && cd ../task-service && npm run test && cd ../notification-service && npm run test",
     "lint": "eslint src spec",
-    "lint:deps": "npx dependency-cruiser src spec --config",
+    "lint:deps": "npx dependency-cruiser src spec services --config",
     "build:front": "esbuild src/frontend/app.tsx --bundle --minify --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {

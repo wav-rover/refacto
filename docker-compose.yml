@@ -42,10 +42,13 @@ services:
     environment:
       - PORT=3003
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
     depends_on:
       - redis
     ports:
       - "3003:3003"
+    volumes:
+      - notification-data:/app/data
 
   auth-service:
     build:
@@ -66,3 +69,4 @@ volumes:
   auth-data:
   project-data:
   task-data:
+  notification-data:

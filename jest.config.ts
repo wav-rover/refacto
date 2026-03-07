@@ -10,6 +10,7 @@ const config: Config = {
     "/services/auth-service/spec/",
     "/services/project-service/spec/",
     "/services/task-service/spec/",
+    "/services/notification-service/spec/",
   ],
 };
 
