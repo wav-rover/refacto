@@ -27,10 +27,13 @@ services:
     environment:
       - PORT=3002
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
     depends_on:
       - redis
     ports:
       - "3002:3002"
+    volumes:
+      - task-data:/app/data
 
   notification-service:
     build:
@@ -62,3 +65,4 @@ services:
 volumes:
   auth-data:
   project-data:
+  task-data:
