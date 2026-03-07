@@ -17,6 +17,9 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+RUN mkdir -p /app/data
+ENV TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
+
+EXPOSE 3002
 
 CMD ["node", "dist/index.js"]

@@ -9,6 +9,7 @@ const config: Config = {
     "/tests/",
     "/services/auth-service/spec/",
     "/services/project-service/spec/",
+    "/services/task-service/spec/",
   ],
 };
 

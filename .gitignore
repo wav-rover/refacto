@@ -2,6 +2,7 @@
 .env
 dist/
 **/dist/
+/services/*/dist/
 
 # Playwright
 node_modules/
