@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { EventBus } from '../ports/eventBus';
 import type { ProjectRepository } from '../ports/projectRepository';
 import {
   createProject,
@@ -31,6 +32,7 @@ function codeToStatus(code: string): number {
 export function mountProjectRoutes(
   app: import('express').Express,
   repo: ProjectRepository,
+  eventBus: EventBus,
 ): void {
   app.post(
     '/projects',
@@ -90,7 +92,7 @@ export function mountProjectRoutes(
     async (req: Request, res: Response): Promise<void> => {
       const currentUserId = req.currentUserId!;
       const id = paramId(req.params.id);
-      const result = await closeProject(repo, id, currentUserId);
+      const result = await closeProject(repo, eventBus, id, currentUserId);
       if (result.ok) {
         res.status(200).json(result.project);
         return;

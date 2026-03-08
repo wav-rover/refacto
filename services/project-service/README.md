@@ -1,4 +1,4 @@
-# project-service – Gestion des projets et des membres (Phase 3)
+# project-service – Gestion des projets et des membres
 
 Service dédié à la création et à la gestion des projets et de leurs membres. Référence métier : [regles-metier-project-service](../../doc/regles-metier-project-service.md).
 
@@ -43,7 +43,7 @@ Met à jour les métadonnées du projet (ex. nom). Réservé au chef de projet. 
 
 ### POST /projects/:id/close
 
-Clôture le projet. Réservé au chef de projet. En phase 3, la vérification « toutes les tâches terminées » n’est pas branchée (prévue en phase 4 via événements / read model).
+Clôture le projet. Réservé au chef de projet. À la clôture réussie, le service publie l’événement `ProjectClosed` sur le broker (voir Phase 4 ci-dessous).
 
 - **Headers** : `X-User-Id` (obligatoire)
 - **Réponses** : `200` (projet clôturé), `401`, `403`, `404`, `409` (déjà clôturé).
@@ -71,12 +71,19 @@ Retire un membre du projet. Réservé au chef de projet. Le chef ne peut pas êt
 - Pas d’ajout en double d’un même membre ; le chef ne peut pas être retiré.
 - Coordination avec le task-service (retrait membre si tâches assignées, clôture si toutes les tâches terminées) : prévue en phase 4 (événements / read model).
 
+## Phase 4 – Communication événementielle
+
+- **Événement publié** : `ProjectClosed` lorsque le projet est clôturé (use case close réussi). Payload : `projectId`, `closedAt` (ISO 8601), `closedByUserId`, `memberIds` (IDs des membres du projet).
+- **Contrat** : [contrat des événements](../../doc/architecture/contrat-evenements.md) (format des messages, nom du stream, variables d’environnement Redis).
+
 ## Variables d’environnement
 
 | Variable | Description | Défaut |
 |----------|-------------|--------|
 | `PORT` | Port HTTP du service | `3001` |
 | `PROJECT_SQLITE_DB_LOCATION` | Chemin du fichier SQLite (projets + membres) | `data/project-service.db` (relatif au repo depuis `dist/`) |
+| `REDIS_URL` | URL Redis pour la publication d’événements (stream) | — (si absent, publication en mémoire uniquement) |
+| `REDIS_STREAM_NAME` | Nom du stream Redis pour les événements métier | `todo:events` |
 
 En Docker, pour persister les données, monter un volume sur le répertoire contenant le fichier DB (ex. `/app/data`) et définir `PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db`.
 

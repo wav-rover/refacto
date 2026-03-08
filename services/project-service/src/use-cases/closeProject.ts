@@ -1,8 +1,10 @@
+import type { EventBus } from '../ports/eventBus';
 import type { ProjectRepository } from '../ports/projectRepository';
 import type { UseCaseResult } from './types';
 
 export async function closeProject(
   repo: ProjectRepository,
+  eventBus: EventBus,
   projectId: string,
   currentUserId: string,
 ): Promise<UseCaseResult> {
@@ -17,7 +19,17 @@ export async function closeProject(
     return { ok: false, code: 'CONFLICT', message: 'Project is already closed' };
   }
 
-  // Phase 3: no check for "all tasks done"; will be wired in phase 4 via port/event
   const updated = await repo.update(projectId, { status: 'closed' });
-  return updated ? { ok: true, project: updated } : { ok: false, code: 'NOT_FOUND' };
+  if (!updated) {
+    return { ok: false, code: 'NOT_FOUND' };
+  }
+
+  const closedAt = new Date().toISOString();
+  await eventBus.publish('ProjectClosed', {
+    projectId: updated.id,
+    closedAt,
+    closedByUserId: currentUserId,
+    memberIds: updated.memberIds,
+  });
+  return { ok: true, project: updated };
 }
