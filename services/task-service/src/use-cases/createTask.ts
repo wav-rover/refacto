@@ -1,3 +1,4 @@
+import type { EventBus } from '../ports/eventBus';
 import type { TaskRepository } from '../ports/taskRepository';
 import type { TaskPriority, TaskStatus } from '../domain/task';
 import type { UseCaseResult } from './types';
@@ -24,6 +25,7 @@ export interface CreateTaskInput {
  */
 export async function createTask(
   repo: TaskRepository,
+  eventBus: EventBus,
   input: CreateTaskInput,
 ): Promise<UseCaseResult> {
   const trimmedTitle = typeof input.title === 'string' ? input.title.trim() : '';
@@ -59,6 +61,17 @@ export async function createTask(
     priority: input.priority ?? 'medium',
     dueDate: input.dueDate ?? null,
   });
+
+  const payload: Record<string, unknown> = {
+    taskId: task.id,
+    projectId: task.projectId,
+    createdBy: task.createdBy,
+    title: task.title,
+  };
+  if (task.assignedTo) {
+    payload.assignedTo = task.assignedTo;
+  }
+  await eventBus.publish('TaskCreated', payload);
 
   return { ok: true, task };
 }

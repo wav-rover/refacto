@@ -1,4 +1,4 @@
-# task-service – Gestion des tâches et affectations (Phase 3)
+# task-service – Gestion des tâches et affectations (Phase 4)
 
 Service dédié à la création et à la gestion des tâches et de leur affectation à des membres de projet. Référence métier : [regles-metier-task-service](../../doc/regles-metier-task-service.md).
 
@@ -118,16 +118,32 @@ Supprime une tâche (suppression physique).
 - Une tâche terminée (`status=done`) ne peut pas être modifiée, assignée ou désassignée.
 - Suppression physique des tâches.
 
-## Coordination avec project-service (Phase 4)
+## Coordination avec project-service
 
-Les vérifications suivantes sont **prévues pour la phase 4** (événements ou read model, pas d'appel HTTP direct) :
+Les vérifications suivantes sont prévues pour une phase ultérieure (événements ou read model, pas d'appel HTTP direct) :
 
 - Vérifier que le projet existe et est ouvert avant création de tâche.
 - Vérifier que l'utilisateur assigné est membre du projet.
 - Interdire la réouverture d'une tâche si le projet est clôturé.
 - Interdire la suppression d'une tâche si le projet est clôturé.
 
-En phase 3, ces contrôles ne sont pas implémentés pour respecter la règle « pas d'appel HTTP direct inter-services ».
+Ces contrôles ne sont pas encore implémentés pour respecter la règle « pas d'appel HTTP direct inter-services ».
+
+**Note** : Les routes `POST /tasks/:id/complete`, `POST /tasks/:id/reopen` et `DELETE /tasks/:id` acceptent un champ `projectOwnerId` dans le body (ou query string pour DELETE) afin de l'inclure dans les événements publiés. Ce champ est fourni par le client/gateway qui connaît le propriétaire du projet.
+
+## Événements publiés (Phase 4)
+
+Le service publie des événements métier via Redis Streams à la fin des opérations réussies. Référence : [contrat-evenements.md](../../doc/architecture/contrat-evenements.md).
+
+| Événement | Opération | Payload |
+|-----------|-----------|---------|
+| `TaskCreated` | Création de tâche | `taskId`, `projectId`, `createdBy`, `title`, `assignedTo?` |
+| `TaskAssigned` | Affectation | `taskId`, `projectId`, `actionUserId`, `assignedTo`, `title` |
+| `TaskCompleted` | Tâche terminée | `taskId`, `projectId`, `actionUserId`, `projectOwnerId`, `assignedTo?` |
+| `TaskReopened` | Réouverture | `taskId`, `projectId`, `actionUserId`, `projectOwnerId`, `assignedTo?` |
+| `TaskDeleted` | Suppression | `taskId`, `projectId`, `actionUserId`, `projectOwnerId`, `assignedTo?` |
+
+Les événements sont publiés uniquement depuis les use cases, jamais depuis les routes ni les repositories.
 
 ## Variables d'environnement
 
@@ -135,7 +151,8 @@ En phase 3, ces contrôles ne sont pas implémentés pour respecter la règle «
 |----------|-------------|--------|
 | `PORT` | Port HTTP du service | `3002` |
 | `TASK_SQLITE_DB_LOCATION` | Chemin du fichier SQLite | `data/task-service.db` |
-| `REDIS_URL` | URL du broker Redis (phase 4) | `redis://redis:6379` |
+| `REDIS_URL` | URL du broker Redis | `redis://redis:6379` |
+| `REDIS_STREAM_NAME` | Nom du stream Redis | `todo:events` |
 
 ## Persistance
 

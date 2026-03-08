@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { EventBus } from '../ports/eventBus';
 import type { TaskRepository } from '../ports/taskRepository';
 import {
   createTask,
@@ -33,6 +34,7 @@ function codeToStatus(code: string): number {
 export function mountTaskRoutes(
   app: import('express').Express,
   repo: TaskRepository,
+  eventBus: EventBus,
 ): void {
   // Créer une tâche
   app.post(
@@ -42,7 +44,7 @@ export function mountTaskRoutes(
       const currentUserId = req.currentUserId!;
       const { title, projectId, assignedTo, status, priority, dueDate } = req.body ?? {};
 
-      const result = await createTask(repo, {
+      const result = await createTask(repo, eventBus, {
         title,
         projectId,
         createdBy: currentUserId,
@@ -120,6 +122,7 @@ export function mountTaskRoutes(
     '/tasks/:id/assign',
     requireCurrentUser,
     async (req: Request, res: Response): Promise<void> => {
+      const currentUserId = req.currentUserId!;
       const id = paramId(req.params.id);
       const { userId } = req.body ?? {};
 
@@ -128,7 +131,7 @@ export function mountTaskRoutes(
         return;
       }
 
-      const result = await assignTask(repo, id, userId.trim());
+      const result = await assignTask(repo, eventBus, id, userId.trim(), currentUserId);
 
       if (result.ok) {
         res.status(200).json(result.task);
@@ -166,9 +169,11 @@ export function mountTaskRoutes(
     '/tasks/:id/complete',
     requireCurrentUser,
     async (req: Request, res: Response): Promise<void> => {
+      const currentUserId = req.currentUserId!;
       const id = paramId(req.params.id);
+      const { projectOwnerId } = req.body ?? {};
 
-      const result = await completeTask(repo, id);
+      const result = await completeTask(repo, eventBus, id, currentUserId, projectOwnerId ?? '');
 
       if (result.ok) {
         res.status(200).json(result.task);
@@ -186,9 +191,11 @@ export function mountTaskRoutes(
     '/tasks/:id/reopen',
     requireCurrentUser,
     async (req: Request, res: Response): Promise<void> => {
+      const currentUserId = req.currentUserId!;
       const id = paramId(req.params.id);
+      const { projectOwnerId } = req.body ?? {};
 
-      const result = await reopenTask(repo, id);
+      const result = await reopenTask(repo, eventBus, id, currentUserId, projectOwnerId ?? '');
 
       if (result.ok) {
         res.status(200).json(result.task);
@@ -206,9 +213,11 @@ export function mountTaskRoutes(
     '/tasks/:id',
     requireCurrentUser,
     async (req: Request, res: Response): Promise<void> => {
+      const currentUserId = req.currentUserId!;
       const id = paramId(req.params.id);
+      const projectOwnerId = (req.query.projectOwnerId as string) ?? '';
 
-      const result = await deleteTask(repo, id);
+      const result = await deleteTask(repo, eventBus, id, currentUserId, projectOwnerId);
 
       if (result.ok) {
         res.status(200).json({ success: true });

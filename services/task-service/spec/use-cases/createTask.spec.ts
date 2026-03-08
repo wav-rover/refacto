@@ -1,8 +1,10 @@
 import { createRepository } from '../../src/persistence';
+import { createInMemoryEventBus } from '../../src/eventBus';
 import { createTask } from '../../src/use-cases';
 
 describe('createTask', () => {
   const repo = createRepository();
+  const eventBus = createInMemoryEventBus();
 
   beforeAll(async () => {
     await repo.init();
@@ -13,15 +15,15 @@ describe('createTask', () => {
   });
 
   beforeEach(async () => {
-    // Clear all tasks before each test
     const tasks = await repo.findAll();
     for (const task of tasks) {
       await repo.remove(task.id);
     }
+    eventBus.clear();
   });
 
   it('creates a task with default values', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'My Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -43,7 +45,7 @@ describe('createTask', () => {
   });
 
   it('creates a task with all optional fields', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'Full Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -63,7 +65,7 @@ describe('createTask', () => {
   });
 
   it('trims task title', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: '  Trimmed Title  ',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -75,7 +77,7 @@ describe('createTask', () => {
   });
 
   it('returns INVALID_INPUT when title is empty', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: '',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -88,7 +90,7 @@ describe('createTask', () => {
   });
 
   it('returns INVALID_INPUT when title is only spaces', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: '   ',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -100,7 +102,7 @@ describe('createTask', () => {
   });
 
   it('returns INVALID_INPUT when projectId is empty', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'Valid Title',
       projectId: '',
       createdBy: 'user-1',
@@ -113,7 +115,7 @@ describe('createTask', () => {
   });
 
   it('returns INVALID_INPUT when createdBy is empty', async () => {
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'Valid Title',
       projectId: 'project-1',
       createdBy: '',
@@ -126,16 +128,14 @@ describe('createTask', () => {
   });
 
   it('returns CONFLICT when assignedTo user already has an active task', async () => {
-    // First, create a task assigned to user-2
-    await createTask(repo, {
+    await createTask(repo, eventBus, {
       title: 'First Task',
       projectId: 'project-1',
       createdBy: 'user-1',
       assignedTo: 'user-2',
     });
 
-    // Try to create another task assigned to user-2
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'Second Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -149,8 +149,7 @@ describe('createTask', () => {
   });
 
   it('allows assigning to user who only has completed tasks', async () => {
-    // Create a task assigned to user-2 and complete it
-    const firstResult = await createTask(repo, {
+    const firstResult = await createTask(repo, eventBus, {
       title: 'First Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -159,11 +158,9 @@ describe('createTask', () => {
     expect(firstResult.ok).toBe(true);
     if (!firstResult.ok) return;
 
-    // Complete the task
     await repo.update(firstResult.task.id, { status: 'done', completed: true });
 
-    // Now create another task for user-2
-    const result = await createTask(repo, {
+    const result = await createTask(repo, eventBus, {
       title: 'Second Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -171,5 +168,52 @@ describe('createTask', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('publishes TaskCreated event on success', async () => {
+    const result = await createTask(repo, eventBus, {
+      title: 'Event Test Task',
+      projectId: 'project-1',
+      createdBy: 'user-1',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const events = eventBus.getPublishedEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe('TaskCreated');
+    expect(events[0].payload.taskId).toBe(result.task.id);
+    expect(events[0].payload.projectId).toBe('project-1');
+    expect(events[0].payload.createdBy).toBe('user-1');
+    expect(events[0].payload.title).toBe('Event Test Task');
+    expect(events[0].payload.assignedTo).toBeUndefined();
+  });
+
+  it('includes assignedTo in TaskCreated event when provided', async () => {
+    const result = await createTask(repo, eventBus, {
+      title: 'Assigned Task',
+      projectId: 'project-1',
+      createdBy: 'user-1',
+      assignedTo: 'user-2',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const events = eventBus.getPublishedEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0].payload.assignedTo).toBe('user-2');
+  });
+
+  it('does not publish event on validation failure', async () => {
+    await createTask(repo, eventBus, {
+      title: '',
+      projectId: 'project-1',
+      createdBy: 'user-1',
+    });
+
+    const events = eventBus.getPublishedEvents();
+    expect(events).toHaveLength(0);
   });
 });

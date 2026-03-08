@@ -1,8 +1,8 @@
 import { createRepository } from '../../src/persistence';
 import { createInMemoryEventBus } from '../../src/eventBus';
-import { createTask, deleteTask } from '../../src/use-cases';
+import { createTask, completeTask, reopenTask } from '../../src/use-cases';
 
-describe('deleteTask', () => {
+describe('reopenTask', () => {
   const repo = createRepository();
   const eventBus = createInMemoryEventBus();
 
@@ -22,7 +22,34 @@ describe('deleteTask', () => {
     eventBus.clear();
   });
 
-  it('deletes an existing task', async () => {
+  it('reopens a completed task', async () => {
+    const createResult = await createTask(repo, eventBus, {
+      title: 'Test Task',
+      projectId: 'project-1',
+      createdBy: 'user-1',
+    });
+    expect(createResult.ok).toBe(true);
+    if (!createResult.ok) return;
+
+    await completeTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
+    eventBus.clear();
+    const result = await reopenTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.task.status).toBe('todo');
+    expect(result.task.completed).toBe(false);
+  });
+
+  it('returns NOT_FOUND for non-existent task', async () => {
+    const result = await reopenTask(repo, eventBus, 'non-existent-id', 'user-1', 'owner-1');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe('NOT_FOUND');
+  });
+
+  it('returns same task if not completed without publishing event', async () => {
     const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
@@ -32,23 +59,17 @@ describe('deleteTask', () => {
     if (!createResult.ok) return;
 
     eventBus.clear();
-    const result = await deleteTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
+    const result = await reopenTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
 
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.task.status).toBe('todo');
 
-    const task = await repo.findById(createResult.task.id);
-    expect(task).toBeNull();
+    const events = eventBus.getPublishedEvents();
+    expect(events).toHaveLength(0);
   });
 
-  it('returns NOT_FOUND for non-existent task', async () => {
-    const result = await deleteTask(repo, eventBus, 'non-existent-id', 'user-1', 'owner-1');
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('NOT_FOUND');
-  });
-
-  it('publishes TaskDeleted event on success', async () => {
+  it('publishes TaskReopened event on success', async () => {
     const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
@@ -58,14 +79,16 @@ describe('deleteTask', () => {
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) return;
 
+    await completeTask(repo, eventBus, createResult.task.id, 'user-2', 'owner-1');
     eventBus.clear();
-    const result = await deleteTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
+    const result = await reopenTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
 
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
 
     const events = eventBus.getPublishedEvents();
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('TaskDeleted');
+    expect(events[0].type).toBe('TaskReopened');
     expect(events[0].payload.taskId).toBe(createResult.task.id);
     expect(events[0].payload.projectId).toBe('project-1');
     expect(events[0].payload.actionUserId).toBe('user-1');
@@ -82,8 +105,9 @@ describe('deleteTask', () => {
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) return;
 
+    await completeTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
     eventBus.clear();
-    const result = await deleteTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
+    const result = await reopenTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
 
     expect(result.ok).toBe(true);
 
@@ -94,7 +118,7 @@ describe('deleteTask', () => {
 
   it('does not publish event on failure', async () => {
     eventBus.clear();
-    await deleteTask(repo, eventBus, 'non-existent-id', 'user-1', 'owner-1');
+    await reopenTask(repo, eventBus, 'non-existent-id', 'user-1', 'owner-1');
 
     const events = eventBus.getPublishedEvents();
     expect(events).toHaveLength(0);

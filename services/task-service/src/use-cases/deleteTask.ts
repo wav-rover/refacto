@@ -1,3 +1,4 @@
+import type { EventBus } from '../ports/eventBus';
 import type { TaskRepository, TaskId } from '../ports/taskRepository';
 
 export type DeleteResult =
@@ -14,20 +15,28 @@ export type DeleteResult =
  */
 export async function deleteTask(
   repo: TaskRepository,
+  eventBus: EventBus,
   id: TaskId,
-  // projectClosed sera utilisé en phase 4 quand on aura le read model
-  _projectClosed?: boolean,
+  actionUserId: string,
+  projectOwnerId: string,
 ): Promise<DeleteResult> {
   const existing = await repo.findById(id);
   if (!existing) {
     return { ok: false, code: 'NOT_FOUND', message: 'Task not found' };
   }
 
-  // Phase 4 : vérifier si le projet est clôturé
-  // if (projectClosed) {
-  //   return { ok: false, code: 'CONFLICT', message: 'Cannot delete task of a closed project' };
-  // }
+  const payload: Record<string, unknown> = {
+    taskId: existing.id,
+    projectId: existing.projectId,
+    actionUserId,
+    projectOwnerId,
+  };
+  if (existing.assignedTo) {
+    payload.assignedTo = existing.assignedTo;
+  }
 
   await repo.remove(id);
+  await eventBus.publish('TaskDeleted', payload);
+
   return { ok: true };
 }

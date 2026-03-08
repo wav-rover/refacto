@@ -1,3 +1,4 @@
+import type { EventBus } from '../ports/eventBus';
 import type { TaskRepository, TaskId } from '../ports/taskRepository';
 import type { UseCaseResult } from './types';
 
@@ -12,9 +13,10 @@ import type { UseCaseResult } from './types';
  */
 export async function reopenTask(
   repo: TaskRepository,
+  eventBus: EventBus,
   id: TaskId,
-  // projectClosed sera utilisé en phase 4 quand on aura le read model
-  _projectClosed?: boolean,
+  actionUserId: string,
+  projectOwnerId: string,
 ): Promise<UseCaseResult> {
   const existing = await repo.findById(id);
   if (!existing) {
@@ -35,6 +37,17 @@ export async function reopenTask(
   if (!task) {
     return { ok: false, code: 'NOT_FOUND', message: 'Task not found' };
   }
+
+  const payload: Record<string, unknown> = {
+    taskId: task.id,
+    projectId: task.projectId,
+    actionUserId,
+    projectOwnerId,
+  };
+  if (task.assignedTo) {
+    payload.assignedTo = task.assignedTo;
+  }
+  await eventBus.publish('TaskReopened', payload);
 
   return { ok: true, task };
 }

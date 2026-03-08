@@ -1,8 +1,10 @@
 import { createRepository } from '../../src/persistence';
+import { createInMemoryEventBus } from '../../src/eventBus';
 import { createTask, updateTask, completeTask } from '../../src/use-cases';
 
 describe('updateTask', () => {
   const repo = createRepository();
+  const eventBus = createInMemoryEventBus();
 
   beforeAll(async () => {
     await repo.init();
@@ -17,10 +19,11 @@ describe('updateTask', () => {
     for (const task of tasks) {
       await repo.remove(task.id);
     }
+    eventBus.clear();
   });
 
   it('updates task title', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Original Title',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -38,7 +41,7 @@ describe('updateTask', () => {
   });
 
   it('updates task status', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -56,7 +59,7 @@ describe('updateTask', () => {
   });
 
   it('updates task priority', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -74,7 +77,7 @@ describe('updateTask', () => {
   });
 
   it('updates task dueDate', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -102,7 +105,7 @@ describe('updateTask', () => {
   });
 
   it('returns INVALID_INPUT when title is empty', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -120,7 +123,7 @@ describe('updateTask', () => {
   });
 
   it('returns CONFLICT when trying to update a completed task', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',
@@ -128,7 +131,7 @@ describe('updateTask', () => {
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) return;
 
-    await completeTask(repo, createResult.task.id);
+    await completeTask(repo, eventBus, createResult.task.id, 'user-1', 'owner-1');
 
     const result = await updateTask(repo, createResult.task.id, {
       title: 'New Title',
@@ -140,7 +143,7 @@ describe('updateTask', () => {
   });
 
   it('trims title when updating', async () => {
-    const createResult = await createTask(repo, {
+    const createResult = await createTask(repo, eventBus, {
       title: 'Test Task',
       projectId: 'project-1',
       createdBy: 'user-1',

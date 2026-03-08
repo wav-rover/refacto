@@ -1,3 +1,4 @@
+import type { EventBus } from '../ports/eventBus';
 import type { TaskRepository, TaskId } from '../ports/taskRepository';
 import type { UseCaseResult } from './types';
 
@@ -12,8 +13,10 @@ import type { UseCaseResult } from './types';
  */
 export async function assignTask(
   repo: TaskRepository,
+  eventBus: EventBus,
   id: TaskId,
   userId: string,
+  actionUserId: string,
 ): Promise<UseCaseResult> {
   const existing = await repo.findById(id);
   if (!existing) {
@@ -49,6 +52,14 @@ export async function assignTask(
   if (!task) {
     return { ok: false, code: 'NOT_FOUND', message: 'Task not found' };
   }
+
+  await eventBus.publish('TaskAssigned', {
+    taskId: task.id,
+    projectId: task.projectId,
+    actionUserId,
+    assignedTo: task.assignedTo,
+    title: task.title,
+  });
 
   return { ok: true, task };
 }
