@@ -93,7 +93,7 @@ Référence : section « 3. Implémentation des cas d’usage métier » du [pla
    - Mettre en place la persistance (port + SQLite + InMemory) pour stocker les notifications créées.
 
 2. **Structure d’écoute (sans broker réel pour l’instant)**
-   - Introduire un port **EventBus** (consommation) ou équivalent et une structure de handlers par type d’événement (TaskAssigned, TaskCompleted, ProjectClosed, etc.) avec une implémentation vide ou stub. L’objectif est que, en phase 4, brancher Redis revienne à injecter la vraie implémentation sans refondre le service.
+   - Introduire un port **EventBus** (consommation) ou équivalent et une structure de handlers par type d’événement (TaskAssigned, TaskCompleted, ProjectClosed, etc.) avec une implémentation vide ou une fausse implémentation. L’objectif est que, en phase 4, brancher Redis revienne à injecter la vraie implémentation sans refondre le service.
 
 3. **Règle métier à intégrer dès que des événements seront reçus**
    - Pas de notification si `actionUserId === targetUserId` (documenté et prêt à être appliqué en phase 4).

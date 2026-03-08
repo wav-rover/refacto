@@ -30,6 +30,8 @@ Index de la documentation technique et du plan de refonte.
 | Fichier | Description |
 |---------|-------------|
 | [phase-2-archi-coeur-technique-repartition-taches.md](./phases/refacto-2-archi/phase-2-archi-coeur-technique-repartition-taches.md) | Phase 2 – Cœur technique (structure, auth, broker) |
+| [phase-3-cas-usage-repartition-taches.md](./phases/refacto-2-archi/phase-3-cas-usage-repartition-taches.md) | Phase 3 – Cas d’usage métier (project, task, notification) |
+| [phase-4-communication-evenementielle-repartition-taches.md](./phases/refacto-2-archi/phase-4-communication-evenementielle-repartition-taches.md) | Phase 4 – Communication événementielle (EventBus, publication, souscription) |
 
 ---
 

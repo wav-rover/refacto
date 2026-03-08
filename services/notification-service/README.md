@@ -43,12 +43,12 @@ La création des notifications se fait uniquement via les handlers d’événeme
 - **Implémentations** : SQLite (prod / dev) et InMemory (tests).
 - Choix dans `src/persistence/index.ts` selon `NODE_ENV === 'test'`.
 
-## Structure EventBus (phase 4)
+## Structure EventBus
 
 - **Port** : `EventBus` (`src/ports/eventBus.ts`) avec `subscribe`, `start`, `stop`.
 - **Handlers** : `src/handlers/index.ts` définit les types d’événements et la fonction `registerHandlers` pour les enregistrer sur un EventBus.
-- En **phase 3** : aucune implémentation EventBus n’est branchée au démarrage.
-- En **phase 4** : injection d’une implémentation Redis, appel à `registerHandlers`, et les handlers appelleront `createNotificationIfAllowed` pour créer les notifications.
+- En **phase 3** : une fausse implémentation (InMemoryEventBus, `src/eventBus/inMemory.ts`) est branchée au démarrage : pas de Redis, mais `registerHandlers` est appelé et les handlers sont enregistrés. Méthode `emit` exposée pour les tests d’intégration (simuler la réception d’un événement).
+- En **phase 4** : injection d’une implémentation Redis (souscription au broker), et les handlers appelleront `createNotificationIfAllowed` pour créer les notifications.
 
 ## Variables d’environnement
 
