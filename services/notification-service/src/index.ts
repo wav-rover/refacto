@@ -10,7 +10,7 @@ const app = express();
 const port = Number(process.env.PORT) || 3003;
 const repo = createRepository();
 const eventBus = createInMemoryEventBus();
-registerHandlers(eventBus);
+registerHandlers(eventBus, repo);
 
 app.use(express.json());
 app.use(currentUser);
