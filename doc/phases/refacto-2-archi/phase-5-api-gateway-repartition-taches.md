@@ -39,8 +39,6 @@ Référence : section « 5. API Gateway (point d’entrée) » du [plan de refon
 
 3. **Middlewares transverses (base)**
    - Logging simple des requêtes (méthode, path, code retour).
-   - Gestion d’un `requestId` / `correlationId` (généré au niveau du Gateway, propagé dans les headers vers les services).
-   - Gestion basique des erreurs : convertir les erreurs réseau / back en réponses HTTP propres pour le frontend.
 
 4. **Auth / contexte utilisateur (couvre toute l’auth en place)**
    - Exposer via le Gateway les endpoints d’auth déjà décidés :
@@ -158,7 +156,7 @@ Référence : section « 5. API Gateway (point d’entrée) » du [plan de refon
 
 ## Règles communes
 
-- **Pas de logique métier dans le Gateway** : uniquement auth, routage, logs, gestion des erreurs, agrégation très légère si nécessaire (formatage de réponse), mais aucune règle métier projet / tâche / notification.
+- **Pas de logique métier dans le Gateway** : uniquement auth, routage, logs, agrégation très légère si nécessaire (formatage de réponse), mais aucune règle métier projet / tâche / notification.
 - **Propagation du contexte** : toujours propager `userId` et `requestId` (ou équivalent) vers les services internes.
 - **Un seul point d’entrée pour le frontend** : le frontend ne doit plus appeler directement `project-service`, `task-service` ou `notification-service`.
 - **Contrats stables** : une fois les endpoints Gateway stabilisés, les considérer comme contrat principal pour le frontend ; les changements internes côté services doivent, autant que possible, être masqués derrière le Gateway.

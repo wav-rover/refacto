@@ -65,6 +65,24 @@ services:
     volumes:
       - auth-data:/app/data
 
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3004
+      - PROJECT_SERVICE_URL=http://project-service:3001
+      - TASK_SERVICE_URL=http://task-service:3002
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3003
+    depends_on:
+      - auth-service
+      - project-service
+      - task-service
+      - notification-service
+    ports:
+      - "3000:3000"
+
 volumes:
   auth-data:
   project-data:
