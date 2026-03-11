@@ -73,4 +73,30 @@ router.get("/me", async (req, res) => {
   res.status(status).json(body);
 });
 
+router.post("/logout", async (req, res) => {
+  const baseUrl = getAuthServiceUrl();
+
+  const { status, headers, body } = await forwardJson({
+    baseUrl,
+    path: "/auth/logout",
+    method: "POST",
+    headers: {
+      cookie: req.header("cookie"),
+      accept: req.header("accept") ?? "application/json",
+      "user-agent": req.header("user-agent"),
+    },
+  });
+
+  const setCookie = headers.get("set-cookie");
+  if (setCookie) {
+    res.setHeader("set-cookie", setCookie);
+  }
+
+  if (status === 204) {
+    res.status(204).send();
+  } else {
+    res.status(status).json(body);
+  }
+});
+
 export { router as authRouter };

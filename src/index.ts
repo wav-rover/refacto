@@ -21,7 +21,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true },
-  }),
+  })
 );
 app.use(express.static(__dirname + "/static"));
 
@@ -33,10 +33,12 @@ app.post("/items", addItem(repo));
 app.put("/items/:id", updateItem(repo));
 app.delete("/items/:id", deleteItem(repo));
 
+const port = Number(process.env.PORT) || 3000;
+
 repo
   .init()
   .then(() => {
-    app.listen(3000, () => console.log("Listening on port 3000"));
+    app.listen(port, () => console.log(`Listening on port ${port}`));
   })
   .catch((err: unknown) => {
     console.error(err);

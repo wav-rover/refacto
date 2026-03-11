@@ -9,6 +9,7 @@ import {
   Form,
   InputGroup,
 } from "react-bootstrap";
+import { apiBaseUrl } from "./config";
 import { Status, Priority, Item } from "../ports/itemRepository";
 
 type ChangeEvent<T> = React.ChangeEvent<T>;
@@ -20,7 +21,7 @@ function App() {
   const [authError, setAuthError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch("/items")
+    fetch(`${apiBaseUrl}/api/auth/me`, { credentials: "include" })
       .then((r) => {
         if (r.status === 401) {
           setAuthState("logged_out");
@@ -33,12 +34,13 @@ function App() {
       .catch(() => setAuthState("logged_out"));
   }, []);
 
-  const handleLogin = (username: string, password: string) => {
+  const handleLogin = (email: string, password: string) => {
     setAuthError(null);
-    fetch("/login", {
+    fetch(`${apiBaseUrl}/api/auth/login`, {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     })
       .then((r) => {
         if (r.ok) {
@@ -51,7 +53,10 @@ function App() {
   };
 
   const handleLogout = () => {
-    fetch("/logout", { method: "POST" })
+    fetch(`${apiBaseUrl}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    })
       .then(() => setAuthState("logged_out"))
       .catch(() => setAuthState("logged_out"));
   };
@@ -107,35 +112,35 @@ function App() {
 }
 
 interface LoginFormProps {
-  onLogin: (username: string, password: string) => void;
+  onLogin: (email: string, password: string) => void;
 }
 
 function LoginForm({ onLogin }: LoginFormProps) {
-  const [username, setUsername] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
-    onLogin(username, password);
+    onLogin(email, password);
     setTimeout(() => setSubmitting(false), 1000);
   };
 
   return (
     <Form onSubmit={handleSubmit}>
       <Form.Group className="mb-3">
-        <Form.Label htmlFor="login-username">Nom d&apos;utilisateur</Form.Label>
+        <Form.Label htmlFor="login-email">Email</Form.Label>
         <Form.Control
-          id="login-username"
-          type="text"
-          placeholder="Nom d'utilisateur"
-          value={username}
+          id="login-email"
+          type="email"
+          placeholder="Email"
+          value={email}
           onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setUsername(e.target.value)
+            setEmail(e.target.value)
           }
           required
-          aria-label="Nom d'utilisateur"
+          aria-label="Email"
         />
       </Form.Group>
       <Form.Group className="mb-3">
@@ -155,7 +160,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
       <Button
         type="submit"
         variant="primary"
-        disabled={!username || !password || submitting}
+        disabled={!email || !password || submitting}
         className="w-100"
       >
         {submitting ? "Connexion..." : "Se connecter"}

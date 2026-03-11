@@ -1,6 +1,7 @@
 import express, { type Application } from "express";
 
 import { apiRouter } from "./routes";
+import { cors } from "./middlewares/cors";
 import { logger } from "./middlewares/logger";
 import { requestId } from "./middlewares/requestId";
 
@@ -8,6 +9,7 @@ export function createApp(): Application {
   const app = express();
 
   app.use(express.json());
+  app.use(cors);
   app.use(requestId);
   app.use(logger);
 

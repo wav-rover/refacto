@@ -4,6 +4,7 @@ import session from "express-session";
 import { createRepository } from "./persistence";
 import { register } from "./routes/register";
 import { login } from "./routes/login";
+import { logout } from "./routes/logout";
 import { me } from "./routes/me";
 import { requireAuth } from "./middleware/requireAuth";
 
@@ -29,6 +30,7 @@ app.get("/", (_req, res) => {
 
 app.post("/auth/register", register(repo));
 app.post("/auth/login", login(repo));
+app.post("/auth/logout", logout);
 app.get("/auth/me", requireAuth, me);
 
 repo
