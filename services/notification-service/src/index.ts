@@ -1,6 +1,10 @@
 import "dotenv/config";
 import express from "express";
-import { createInMemoryEventBus } from "./eventBus/inMemory";
+import {
+  createInMemoryEventBus,
+  createRedisEventBus,
+} from "./eventBus";
+import type { EventBus } from "./ports/eventBus";
 import { registerHandlers } from "./handlers";
 import { currentUser } from "./middleware/currentUser";
 import { createRepository } from "./persistence";
@@ -9,7 +13,13 @@ import { mountNotificationRoutes } from "./routes/notifications";
 const app = express();
 const port = Number(process.env.PORT) || 3003;
 const repo = createRepository();
-const eventBus = createInMemoryEventBus();
+
+const redisUrl = process.env.REDIS_URL;
+const streamName = process.env.REDIS_STREAM_NAME ?? "todo:events";
+const eventBus: EventBus & { disconnect?(): Promise<void> } = redisUrl
+  ? createRedisEventBus(redisUrl, streamName)
+  : createInMemoryEventBus();
+
 registerHandlers(eventBus, repo);
 
 app.use(express.json());
@@ -26,19 +36,19 @@ repo
   .then(() => eventBus.start())
   .then(() => {
     app.listen(port, () => {
-      // eslint-disable-next-line no-console
       console.log(`[notification-service] Listening on port ${port}`);
     });
   })
   .catch((err: unknown) => {
-    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   });
 
 const gracefulShutdown = (): void => {
-  repo
-    .teardown()
+  const stop = eventBus.stop();
+  const disconnect = eventBus.disconnect?.() ?? Promise.resolve();
+  const teardown = repo.teardown();
+  Promise.all([stop, disconnect, teardown])
     .catch(() => {})
     .then(() => process.exit());
 };

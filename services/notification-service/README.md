@@ -1,6 +1,8 @@
-# notification-service – Notifications métier (Phase 3)
+# notification-service – Notifications métier (Phase 4)
 
-Service dédié à la réaction aux événements métier émis par les autres services. Il ne contient pas de logique métier propre aux tâches ou projets ; il interprète des événements et les transforme en notifications utilisateur. Il n’est jamais appelé directement par les autres services (communication via broker, phase 4). Référence : [regles-metier-notification-service](../../doc/regles-metier-notification-service.md).
+Service dédié à la réaction aux événements métier émis par les autres services. Il ne contient pas de logique métier propre aux tâches ou projets ; il interprète des événements et les transforme en notifications utilisateur. Il n’est jamais appelé directement par les autres services (communication via broker Redis Streams). Référence : [regles-metier-notification-service](../../doc/regles-metier-notification-service.md).
+
+**Contrat des événements** : types et payloads définis dans [contrat-evenements.md](../../doc/architecture/contrat-evenements.md).
 
 ## Règle métier
 
@@ -14,16 +16,19 @@ Service dédié à la réaction aux événements métier émis par les autres se
 - `type` : type d’événement (TaskAssigned, TaskCompleted, TaskReopened, TaskDeleted, ProjectClosed, MemberAddedToProject)
 - `createdAt` : date de création (ISO string)
 
-## Mapping événements → destinataires (prévu pour phase 4)
+## Événements consommés
 
-| Événement | Destinataire(s) principal(aux) | Destinataire(s) secondaire(s) |
-|-----------|-------------------------------|-------------------------------|
-| TaskAssigned | Utilisateur assigné | Chef de projet |
-| TaskCompleted | Chef de projet | Utilisateur assigné (si complétion par un autre) |
-| TaskReopened | Chef de projet | Utilisateur assigné (si différent de l’actionneur) |
-| TaskDeleted | Chef de projet, utilisateur assigné si présent | — |
-| ProjectClosed | Tous les membres du projet | — |
-| MemberAddedToProject | Nouvel utilisateur ajouté | Chef de projet / autres membres (selon politique) |
+Le service s’abonne au stream Redis (consumer group `notification-service`) et traite les types suivants : **TaskAssigned**, **TaskCompleted**, **TaskReopened**, **TaskDeleted**, **ProjectClosed**. Le type `TaskCreated` est ignoré (aucune notification prévue). Format des messages : [contrat-evenements.md](../../doc/architecture/contrat-evenements.md).
+
+## Mapping événements → destinataires
+
+| Événement | Destinataire(s) | Règle |
+|-----------|-----------------|--------|
+| TaskAssigned | `assignedTo` | 1 notification (pas si actionUserId === assignedTo) |
+| TaskCompleted | `projectOwnerId` ; optionnellement `assignedTo` si ≠ actionUserId | Chef de projet + ancien assigné si différent de l’actionneur |
+| TaskReopened | Idem TaskCompleted | Chef de projet + assigné si différent |
+| TaskDeleted | `projectOwnerId` et `assignedTo` si présent | Une notification par destinataire |
+| ProjectClosed | Chaque id dans `memberIds` | Une notification par membre (pas si membre === closedByUserId) |
 
 ## Endpoints
 
@@ -35,7 +40,7 @@ Liste les notifications du utilisateur courant.
 - **Réponse** : `200` – tableau de notifications (`id`, `userId`, `message`, `type`, `createdAt`)
 - **401** : header `X-User-Id` absent
 
-La création des notifications se fait uniquement via les handlers d’événements (phase 4) ; il n’y a pas de route POST en phase 3.
+La création des notifications se fait uniquement via les handlers d’événements (souscription au broker) ; il n’y a pas de route POST.
 
 ## Persistance
 
@@ -46,9 +51,8 @@ La création des notifications se fait uniquement via les handlers d’événeme
 ## Structure EventBus
 
 - **Port** : `EventBus` (`src/ports/eventBus.ts`) avec `subscribe`, `start`, `stop`.
-- **Handlers** : `src/handlers/index.ts` définit les types d’événements et la fonction `registerHandlers` pour les enregistrer sur un EventBus.
-- En **phase 3** : une fausse implémentation (InMemoryEventBus, `src/eventBus/inMemory.ts`) est branchée au démarrage : pas de Redis, mais `registerHandlers` est appelé et les handlers sont enregistrés. Méthode `emit` exposée pour les tests d’intégration (simuler la réception d’un événement).
-- En **phase 4** : injection d’une implémentation Redis (souscription au broker), et les handlers appelleront `createNotificationIfAllowed` pour créer les notifications.
+- **Handlers** : `src/handlers/index.ts` enregistre les handlers via `registerHandlers(eventBus, repo)` ; chaque handler appelle `createNotificationIfAllowed` pour créer les notifications.
+- **Implémentations** : `createInMemoryEventBus()` (tests, ou lorsque `REDIS_URL` est absent) ; `createRedisEventBus(redisUrl, streamName)` lorsque `REDIS_URL` est défini — souscription au stream via consumer group, dispatch par `type`, XACK après succès. Barrel : `src/eventBus/index.ts`.
 
 ## Variables d’environnement
 
@@ -56,7 +60,8 @@ La création des notifications se fait uniquement via les handlers d’événeme
 |----------|-------------|--------|
 | PORT | Port HTTP du service | 3003 |
 | NOTIFICATION_SQLITE_DB_LOCATION | Chemin du fichier SQLite | `data/notification-service.db` (relatif au repo depuis `dist/`) |
-| REDIS_URL | URL du broker Redis (phase 4) | redis://redis:6379 |
+| REDIS_URL | URL du broker Redis (obligatoire pour consommer en prod) | — (si absent, InMemoryEventBus utilisé) |
+| REDIS_STREAM_NAME | Nom du stream Redis | `todo:events` |
 
 ## Lancement
 
