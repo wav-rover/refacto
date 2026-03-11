@@ -195,37 +195,30 @@ Voir détails : [règles métier Auth-service / User-service](./regles-metier-au
 
 ---
 
-# 5. Notification conditionnelle
+# 5. API Gateway (point d’entrée)
 
-## Règle métier
+Voir répartition et explication des tâches : [Phase 5 – API Gateway – Répartition des tâches](./phases/refacto-2-archi/phase-5-api-gateway-repartition-taches.md).
 
-Une notification est déclenchée uniquement si :
-actionUserId !== targetUserId
+Objectif : avoir un **point d’entrée unique** pour les clients, qui déporte les concerns transverses (auth, logs) en dehors des services métier.
 
-### Cas de notification
+## 5.1 Rôle
 
-- Affectation d’une tâche (`TaskAssigned`)
-- Fin de projet (`ProjectClosed`)
-- Tâche terminée (`TaskCompleted`)
-- Tâche réouverte (`TaskReopened`)
+- Point d’accès unique pour le frontend.
+- Vérifie le token et extrait un `userId` fiable.
+- Route les requêtes vers :
+  - `auth-service` pour l’authentification.
+  - `project-service` pour les projets.
+  - `task-service` pour les tâches.
+  - `notification-service` pour les notifications.
+- Centralise les logs / métriques.
+- **Ne porte pas de logique métier** (pas de règles projets / tâches / notifications).
 
-### Exemples
+## 5.2 Grandes étapes de mise en place
 
-- User A assigne une tâche à User B → notification envoyée
-- User A termine une tâche assignée à User B → notification envoyée
-- User B termine sa propre tâche → aucune notification
-
-### Localisation de la logique
-
-- La règle conditionnelle doit être dans `notification-service`
-- `notification-service` logge les events
-- `task-service` publie toujours l’événement sans logique de notification
-
-Principe respecté :
-
-- Responsabilité unique
-- Découplage fort
-- Séparation métier / comportement transverse
+1. Mettre le monolithe derrière l’API Gateway avec les routes actuelles (`/api/**`) pour ne pas casser le frontend.
+2. Ajouter le routage vers les nouveaux services (`project-service`, `task-service`, `notification-service`, `auth-service`).
+3. Basculer progressivement les routes du monolithe vers les services, en gardant la même API publique pour le frontend.
+4. À terme, retirer le monolithe du chemin critique : le frontend ne parle plus qu’au Gateway, le Gateway ne parle plus qu’aux microservices.
 
 ---
 
