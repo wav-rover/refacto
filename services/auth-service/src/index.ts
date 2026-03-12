@@ -41,12 +41,10 @@ repo
   .init()
   .then(() => {
     app.listen(port, () => {
-      // eslint-disable-next-line no-console
       console.log(`[auth-service] Listening on port ${port}`);
     });
   })
   .catch((err: unknown) => {
-    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   });

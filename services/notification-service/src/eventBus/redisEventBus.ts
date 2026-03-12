@@ -112,7 +112,6 @@ export function createRedisEventBus(
                 await Promise.all(list.map((h) => h(message.payload)));
                 await redis.xack(streamName, CONSUMER_GROUP, entryId);
               } catch (err: unknown) {
-                // eslint-disable-next-line no-console
                 console.error('[notification-service] Handler error for', message.type, err);
               }
             }

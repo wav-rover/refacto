@@ -109,7 +109,6 @@ function init(): Promise<void> {
                 return;
               }
               if (process.env.NODE_ENV !== 'test') {
-                // eslint-disable-next-line no-console
                 console.log(
                   `[project-service] Using sqlite database at ${location}`,
                 );

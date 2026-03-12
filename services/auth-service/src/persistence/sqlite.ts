@@ -65,7 +65,6 @@ function init(): Promise<void> {
           }
 
           if (process.env.NODE_ENV !== "test") {
-            // eslint-disable-next-line no-console
             console.log(`[auth-service] Using sqlite database at ${location}`);
           }
 
