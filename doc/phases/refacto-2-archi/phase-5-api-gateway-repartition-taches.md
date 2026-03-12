@@ -65,7 +65,7 @@ Référence : section « 5. API Gateway (point d’entrée) » du [plan de refon
 
 **Responsable :** Tristan
 
-**Périmètre :** définir et implémenter les routes exposées par le Gateway pour tout ce qui touche aux projets et membres, en les faisant pointer vers `project-service`.
+**Périmètre :** définir et implémenter les routes exposées par le Gateway pour tout ce qui touche aux projets et membres, en les faisant pointer vers `project-service`. Le contrat détaillé (endpoints, payloads, mapping, erreurs) est décrit dans `doc/architecture/gateway-project-service.md`.
 
 **À faire (quoi) :**
 
