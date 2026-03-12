@@ -20,7 +20,11 @@ app.use(
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true },
+    cookie: {
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    },
   })
 );
 
