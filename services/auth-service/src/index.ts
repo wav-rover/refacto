@@ -15,6 +15,7 @@ const repo = createRepository();
 
 app.use(express.json());
 
+const isProduction = process.env.NODE_ENV === "production";
 app.use(
   session({
     secret: sessionSecret,
@@ -22,8 +23,8 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: "none",
-      secure: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
     },
   })
 );
