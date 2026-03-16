@@ -52,6 +52,27 @@ function App() {
       .catch(() => setAuthError("Erreur de connexion"));
   };
 
+  const handleRegister = (email: string, password: string) => {
+    setAuthError(null);
+    fetch(`${apiBaseUrl}/api/auth/register`, {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    })
+      .then((r) => {
+        if (r.ok) {
+          // Après inscription, on enchaîne un login pour garder le flux simple.
+          handleLogin(email, password);
+        } else if (r.status === 409) {
+          setAuthError("Email déjà utilisé");
+        } else {
+          setAuthError("Erreur lors de la création du compte");
+        }
+      })
+      .catch(() => setAuthError("Erreur lors de la création du compte"));
+  };
+
   const handleLogout = () => {
     fetch(`${apiBaseUrl}/api/auth/logout`, {
       method: "POST",
@@ -84,7 +105,7 @@ function App() {
           <Col md={{ offset: 3, span: 6 }}>
             <h2 className="text-center mt-4 mb-4">Connexion</h2>
             {authError && <Alert variant="danger">{authError}</Alert>}
-            <LoginForm onLogin={handleLogin} />
+            <LoginForm onLogin={handleLogin} onRegister={handleRegister} />
           </Col>
         </Row>
       </Container>
@@ -113,9 +134,10 @@ function App() {
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => void;
+  onRegister: (email: string, password: string) => void;
 }
 
-function LoginForm({ onLogin }: LoginFormProps) {
+function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -164,6 +186,15 @@ function LoginForm({ onLogin }: LoginFormProps) {
         className="w-100"
       >
         {submitting ? "Connexion..." : "Se connecter"}
+      </Button>
+      <Button
+        type="button"
+        variant="outline-secondary"
+        disabled={!email || !password || submitting}
+        className="w-100 mt-2"
+        onClick={() => onRegister(email, password)}
+      >
+        Créer un compte
       </Button>
     </Form>
   );
