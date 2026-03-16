@@ -35,38 +35,12 @@ Référence : section « 5. API Gateway (point d’entrée) » et « 6. Tests di
   - Une vue « Notifications » avec une simple liste.
   - Navigation rudimentaire (liens / boutons texte), pas de routing compliqué ni de design poussé.
 
----
+**Première étape de la phase :**
 
-## Jeremy – Architecture front & intégration Gateway
-
-**Responsable :** Jeremy
-
-**Périmètre :** préparer le frontend existant pour qu’il parle uniquement au Gateway, en gardant une UI volontairement basique.
-
-**À faire (quoi) :**
-
-1. **Clarifier le point d’entrée API côté front**
-   - S’assurer que la configuration `apiBaseUrl` (déjà en place) est utilisée partout pour les appels HTTP :
-     - `apiBaseUrl` pointant vers le Gateway (`http://localhost:3000` en dev).
-   - Documenter dans le README du frontend :
-     - Comment définir `window.__API_BASE_URL__` dans `index.html`.
-     - Que **tous** les appels réseau doivent passer par `${apiBaseUrl}/api/...`.
-
-2. **Remplacer progressivement `/items` par des appels Gateway**
-   - Identifier dans le code front tous les usages de `/items` (GET/POST/PUT/DELETE).
-   - Planifier leur remplacement par des appels aux routes `projects` / `tasks` du Gateway en fonction du futur UX :
-     - ex. remplacer la todo liste unique par une liste de tâches rattachées à un projet, ou par une vue minimale « toutes les tâches ».
-   - Garder une UI simple (inputs texte, listes HTML, boutons primaires).
-
-3. **Simplifier et stabiliser la structure front**
-   - Garder un seul point d’entrée React (un composant racine) avec :
-     - un état d’auth (`logged_out`, `logged_in`).
-     - une navigation ultra basique entre 3–4 vues (projets, tâches, notifications).
-   - Ne pas introduire de router lourd ni de state management complexe (pas de Redux, etc.) pour cette phase.
-
-**Livrable :**
-
-- Un frontend structuré pour appeler le Gateway via `apiBaseUrl`, où les appels historiques `/items` sont identifiés et prêts à être remplacés par les nouveaux appels tâches/projets.
+- Jeremy finalise le branchement de **toute l’auth** côté frontend sur l’API Gateway :
+  - ajouter un formulaire / une vue de **register** qui appelle `POST ${apiBaseUrl}/api/auth/register` (via le Gateway),
+  - faire en sorte qu’un utilisateur puisse faire `register` → `login` → être reconnu par `/api/auth/me` → `logout`, uniquement via le Gateway,
+  - garder l’UI très basique (écran unique avec login + register, pas de routing supplémentaire).
 
 ---
 
