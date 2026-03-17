@@ -8,9 +8,24 @@ import {
   Alert,
   Form,
   InputGroup,
+  Table,
 } from "react-bootstrap";
 import { apiBaseUrl } from "./config";
 import { Status, Priority, Item } from "../ports/itemRepository";
+
+/** Type Task aligné sur la réponse du task-service via le Gateway */
+interface Task {
+  id: string;
+  title: string;
+  projectId: string;
+  createdBy: string;
+  assignedTo: string | null;
+  completed: boolean;
+  status: "todo" | "in_progress" | "done";
+  priority: "low" | "medium" | "high";
+  dueDate: string | null;
+  createdAt: string;
+}
 
 type ChangeEvent<T> = React.ChangeEvent<T>;
 
@@ -112,11 +127,29 @@ function App() {
     );
   }
 
+  const [activeView, setActiveView] = React.useState<"items" | "tasks">("tasks");
+
   return (
     <Container>
       <Row>
         <Col md={{ offset: 3, span: 6 }}>
-          <div className="d-flex justify-content-end mb-3 mt-3">
+          <div className="d-flex justify-content-between align-items-center mb-3 mt-3 flex-wrap gap-2">
+            <div className="d-flex gap-2">
+              <Button
+                variant={activeView === "tasks" ? "primary" : "outline-primary"}
+                size="sm"
+                onClick={() => setActiveView("tasks")}
+              >
+                Tâches
+              </Button>
+              <Button
+                variant={activeView === "items" ? "primary" : "outline-primary"}
+                size="sm"
+                onClick={() => setActiveView("items")}
+              >
+                Items (ancien)
+              </Button>
+            </div>
             <Button
               variant="outline-secondary"
               size="sm"
@@ -125,7 +158,11 @@ function App() {
               Déconnexion
             </Button>
           </div>
-          <TodoListCard onAuthRequired={handleAuthRequired} />
+          {activeView === "tasks" ? (
+            <TasksView onAuthRequired={handleAuthRequired} />
+          ) : (
+            <TodoListCard onAuthRequired={handleAuthRequired} />
+          )}
         </Col>
       </Row>
     </Container>
@@ -197,6 +234,282 @@ function LoginForm({ onLogin, onRegister }: LoginFormProps) {
         Créer un compte
       </Button>
     </Form>
+  );
+}
+
+/** Vue minimale « Tâches » : appelle uniquement le Gateway /api/tasks/... */
+interface TasksViewProps {
+  onAuthRequired: () => void;
+}
+
+function TasksView({ onAuthRequired }: TasksViewProps) {
+  const [projectId, setProjectId] = React.useState("");
+  const [tasks, setTasks] = React.useState<Task[] | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const loadTasks = React.useCallback(() => {
+    const id = projectId.trim();
+    if (!id) {
+      setError("Saisir un projectId pour charger les tâches.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    setTasks(null);
+    fetch(`${apiBaseUrl}/api/tasks/project/${encodeURIComponent(id)}`, {
+      credentials: "include",
+    })
+      .then((r) => {
+        if (r.status === 401) {
+          onAuthRequired();
+          throw new Error("401");
+        }
+        if (!r.ok) {
+          return r.json().then((b) => Promise.reject({ status: r.status, body: b }));
+        }
+        return r.json();
+      })
+      .then((data: Task[]) => {
+        setTasks(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setLoading(false);
+        if (err.status) {
+          setError(`Erreur ${err.status}: ${err.body?.message ?? err.body?.error ?? "Impossible de charger les tâches."}`);
+        } else {
+          setError("Impossible de charger les tâches.");
+        }
+      });
+  }, [projectId, onAuthRequired]);
+
+  const callTaskAction = (
+    method: string,
+    path: string,
+    body?: object,
+    query?: Record<string, string>
+  ) => {
+    setError(null);
+    const url = query
+      ? `${apiBaseUrl}${path}?${new URLSearchParams(query).toString()}`
+      : `${apiBaseUrl}${path}`;
+    return fetch(url, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: "include",
+    }).then((r) => {
+      if (r.status === 401) {
+        onAuthRequired();
+        return Promise.reject(new Error("401"));
+      }
+      if (!r.ok) {
+        return r.json().then((b) => {
+          setError(`${r.status}: ${b?.message ?? b?.error ?? "Erreur"}`);
+          return Promise.reject(new Error(String(r.status)));
+        });
+      }
+      return r.json();
+    });
+  };
+
+  const handleCreateTask = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const title = (form.elements.namedItem("task-title") as HTMLInputElement)?.value?.trim();
+    const id = projectId.trim();
+    if (!title || !id) {
+      setError("Titre et projectId obligatoires.");
+      return;
+    }
+    const priority = (form.elements.namedItem("task-priority") as HTMLSelectElement)?.value ?? "medium";
+    const status = (form.elements.namedItem("task-status") as HTMLSelectElement)?.value ?? "todo";
+    setError(null);
+    callTaskAction("POST", "/api/tasks", {
+      title,
+      projectId: id,
+      priority,
+      status,
+    })
+      .then(() => loadTasks())
+      .catch(() => {});
+  };
+
+  const handleAssign = (taskId: string, userId: string) => {
+    if (!userId.trim()) {
+      setError("Saisir un userId pour assigner.");
+      return;
+    }
+    callTaskAction("POST", `/api/tasks/${taskId}/assign`, { userId })
+      .then(() => loadTasks())
+      .catch(() => {});
+  };
+
+  const handleComplete = (taskId: string) => {
+    callTaskAction("POST", `/api/tasks/${taskId}/complete`, {})
+      .then(() => loadTasks())
+      .catch(() => {});
+  };
+
+  const handleReopen = (taskId: string) => {
+    callTaskAction("POST", `/api/tasks/${taskId}/reopen`, {})
+      .then(() => loadTasks())
+      .catch(() => {});
+  };
+
+  const handleDelete = (taskId: string) => {
+    if (!window.confirm("Supprimer cette tâche ?")) return;
+    callTaskAction("DELETE", `/api/tasks/${taskId}`)
+      .then(() => loadTasks())
+      .catch(() => {});
+  };
+
+  return (
+    <>
+      <h5 className="mb-3">Tâches du projet</h5>
+      <div className="mb-3 d-flex gap-2 align-items-center flex-wrap">
+        <Form.Control
+          type="text"
+          placeholder="ProjectId"
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          style={{ maxWidth: 280 }}
+        />
+        <Button variant="primary" size="sm" onClick={loadTasks} disabled={loading}>
+          {loading ? "Chargement…" : "Charger les tâches"}
+        </Button>
+      </div>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      <Form onSubmit={handleCreateTask} className="mb-4">
+        <Form.Label className="small">Nouvelle tâche (projectId = {projectId || "—"})</Form.Label>
+        <InputGroup className="mb-2">
+          <Form.Control
+            name="task-title"
+            type="text"
+            placeholder="Titre de la tâche"
+            required
+          />
+          <Form.Select name="task-priority" aria-label="Priorité" style={{ maxWidth: 120 }}>
+            <option value="low">Basse</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Haute</option>
+          </Form.Select>
+          <Form.Select name="task-status" aria-label="Statut" style={{ maxWidth: 130 }}>
+            <option value="todo">À faire</option>
+            <option value="in_progress">En cours</option>
+            <option value="done">Terminé</option>
+          </Form.Select>
+          <Button type="submit" variant="success">
+            Créer
+          </Button>
+        </InputGroup>
+      </Form>
+
+      {tasks === null && !loading && projectId.trim() && (
+        <p className="text-muted small">Cliquez sur « Charger les tâches ».</p>
+      )}
+      {tasks && tasks.length === 0 && <p className="text-muted">Aucune tâche.</p>}
+      {tasks && tasks.length > 0 && (
+        <Table size="sm" bordered responsive>
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Statut</th>
+              <th>Priorité</th>
+              <th>Assigné à</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onAssign={handleAssign}
+                onComplete={handleComplete}
+                onReopen={handleReopen}
+                onDelete={handleDelete}
+              />
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </>
+  );
+}
+
+interface TaskRowProps {
+  task: Task;
+  onAssign: (taskId: string, userId: string) => void;
+  onComplete: (taskId: string) => void;
+  onReopen: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
+}
+
+function TaskRow({
+  task,
+  onAssign,
+  onComplete,
+  onReopen,
+  onDelete,
+}: TaskRowProps) {
+  const [assignUserId, setAssignUserId] = React.useState("");
+
+  const statusLabel =
+    task.status === "todo"
+      ? "À faire"
+      : task.status === "in_progress"
+        ? "En cours"
+        : "Terminé";
+  const priorityLabel =
+    task.priority === "low"
+      ? "Basse"
+      : task.priority === "medium"
+        ? "Moyenne"
+        : "Haute";
+
+  return (
+    <tr>
+      <td>{task.title}</td>
+      <td>{statusLabel}</td>
+      <td>{priorityLabel}</td>
+      <td>{task.assignedTo ?? "—"}</td>
+      <td>
+        <div className="d-flex flex-wrap gap-1 align-items-center">
+          <InputGroup size="sm" style={{ width: 120 }}>
+            <Form.Control
+              type="text"
+              placeholder="userId"
+              value={assignUserId}
+              onChange={(e) => setAssignUserId(e.target.value)}
+            />
+          </InputGroup>
+          <Button
+            size="sm"
+            variant="outline-primary"
+            onClick={() => onAssign(task.id, assignUserId)}
+          >
+            Assigner
+          </Button>
+          {task.status !== "done" && (
+            <Button size="sm" variant="outline-success" onClick={() => onComplete(task.id)}>
+              Terminer
+            </Button>
+          )}
+          {task.status === "done" && (
+            <Button size="sm" variant="outline-warning" onClick={() => onReopen(task.id)}>
+              Réouvrir
+            </Button>
+          )}
+          <Button size="sm" variant="outline-danger" onClick={() => onDelete(task.id)}>
+            Supprimer
+          </Button>
+        </div>
+      </td>
+    </tr>
   );
 }
 

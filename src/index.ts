@@ -1,3 +1,4 @@
+import path from "path";
 import express from "express";
 import session from "express-session";
 import { createRepository } from "./persistence";
@@ -21,9 +22,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true },
-  })
+  }),
 );
-app.use(express.static(__dirname + "/static"));
+app.use(express.static(path.join(__dirname, "static")));
 
 app.post("/login", login);
 app.post("/logout", logout);
