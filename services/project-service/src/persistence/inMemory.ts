@@ -35,6 +35,16 @@ async function findAll(): Promise<Project[]> {
   return Array.from(byId.values());
 }
 
+async function findByUser(userId: string): Promise<Project[]> {
+  const trimmedUserId = userId.trim();
+  if (trimmedUserId === '') {
+    return [];
+  }
+  return Array.from(byId.values()).filter((project) =>
+    project.memberIds.includes(trimmedUserId),
+  );
+}
+
 async function update(
   id: ProjectId,
   update: { name?: string; status?: 'open' | 'closed' },
@@ -73,6 +83,7 @@ const inMemoryRepository: ProjectRepository = {
   create,
   findById,
   findAll,
+  findByUser,
   update,
   addMember,
   removeMember,

@@ -52,10 +52,15 @@ export function mountProjectRoutes(
     },
   );
 
-  app.get('/projects', async (_req: Request, res: Response): Promise<void> => {
-    const projects = await repo.findAll();
-    res.status(200).json(projects);
-  });
+  app.get(
+    '/projects',
+    requireCurrentUser,
+    async (req: Request, res: Response): Promise<void> => {
+      const currentUserId = req.currentUserId!;
+      const projects = await repo.findByUser(currentUserId);
+      res.status(200).json(projects);
+    },
+  );
 
   app.get('/projects/:id', async (req: Request, res: Response): Promise<void> => {
     const id = paramId(req.params.id);

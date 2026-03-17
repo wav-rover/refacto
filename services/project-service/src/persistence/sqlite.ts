@@ -243,6 +243,39 @@ function findAll(): Promise<Project[]> {
   });
 }
 
+function findByUser(userId: string): Promise<Project[]> {
+  const trimmedUserId = userId.trim();
+  if (trimmedUserId === '') {
+    return Promise.resolve([]);
+  }
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error('Database not initialised'));
+      return;
+    }
+    db.all(
+      `SELECT p.id, p.name, p.ownerId, p.status, p.createdAt
+       FROM projects p
+       JOIN project_members m ON m.projectId = p.id
+       WHERE m.userId = ?
+       ORDER BY p.createdAt`,
+      [trimmedUserId],
+      async (err: Error | null, rows: ProjectRow[]) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const result: Project[] = [];
+        for (const row of rows ?? []) {
+          const memberIds = await loadMembers(row.id);
+          result.push(mapRow(row, memberIds));
+        }
+        resolve(result);
+      },
+    );
+  });
+}
+
 function update(id: ProjectId, update: ProjectUpdate): Promise<Project | null> {
   return new Promise((resolve, reject) => {
     if (!db) {
@@ -328,6 +361,7 @@ const sqliteRepository: ProjectRepository = {
   create,
   findById,
   findAll,
+  findByUser,
   update,
   addMember,
   removeMember,

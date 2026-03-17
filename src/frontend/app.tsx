@@ -12,20 +12,7 @@ import {
 } from "react-bootstrap";
 import { apiBaseUrl } from "./config";
 import { Status, Priority, Item } from "../ports/itemRepository";
-
-/** Type Task aligné sur la réponse du task-service via le Gateway */
-interface Task {
-  id: string;
-  title: string;
-  projectId: string;
-  createdBy: string;
-  assignedTo: string | null;
-  completed: boolean;
-  status: "todo" | "in_progress" | "done";
-  priority: "low" | "medium" | "high";
-  dueDate: string | null;
-  createdAt: string;
-}
+import ProjectsView from "./ProjectsView";
 
 type ChangeEvent<T> = React.ChangeEvent<T>;
 
@@ -127,29 +114,11 @@ function App() {
     );
   }
 
-  const [activeView, setActiveView] = React.useState<"items" | "tasks">("tasks");
-
   return (
     <Container>
       <Row>
         <Col md={{ offset: 3, span: 6 }}>
-          <div className="d-flex justify-content-between align-items-center mb-3 mt-3 flex-wrap gap-2">
-            <div className="d-flex gap-2">
-              <Button
-                variant={activeView === "tasks" ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => setActiveView("tasks")}
-              >
-                Tâches
-              </Button>
-              <Button
-                variant={activeView === "items" ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => setActiveView("items")}
-              >
-                Items (ancien)
-              </Button>
-            </div>
+          <div className="d-flex justify-content-end mb-3 mt-3">
             <Button
               variant="outline-secondary"
               size="sm"
@@ -158,11 +127,7 @@ function App() {
               Déconnexion
             </Button>
           </div>
-          {activeView === "tasks" ? (
-            <TasksView onAuthRequired={handleAuthRequired} />
-          ) : (
-            <TodoListCard onAuthRequired={handleAuthRequired} />
-          )}
+          <ProjectsView onAuthRequired={handleAuthRequired} />
         </Col>
       </Row>
     </Container>
@@ -266,7 +231,9 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
           throw new Error("401");
         }
         if (!r.ok) {
-          return r.json().then((b) => Promise.reject({ status: r.status, body: b }));
+          return r
+            .json()
+            .then((b) => Promise.reject({ status: r.status, body: b }));
         }
         return r.json();
       })
@@ -277,7 +244,9 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
       .catch((err) => {
         setLoading(false);
         if (err.status) {
-          setError(`Erreur ${err.status}: ${err.body?.message ?? err.body?.error ?? "Impossible de charger les tâches."}`);
+          setError(
+            `Erreur ${err.status}: ${err.body?.message ?? err.body?.error ?? "Impossible de charger les tâches."}`,
+          );
         } else {
           setError("Impossible de charger les tâches.");
         }
@@ -288,7 +257,7 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
     method: string,
     path: string,
     body?: object,
-    query?: Record<string, string>
+    query?: Record<string, string>,
   ) => {
     setError(null);
     const url = query
@@ -317,14 +286,20 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
   const handleCreateTask = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const title = (form.elements.namedItem("task-title") as HTMLInputElement)?.value?.trim();
+    const title = (
+      form.elements.namedItem("task-title") as HTMLInputElement
+    )?.value?.trim();
     const id = projectId.trim();
     if (!title || !id) {
       setError("Titre et projectId obligatoires.");
       return;
     }
-    const priority = (form.elements.namedItem("task-priority") as HTMLSelectElement)?.value ?? "medium";
-    const status = (form.elements.namedItem("task-status") as HTMLSelectElement)?.value ?? "todo";
+    const priority =
+      (form.elements.namedItem("task-priority") as HTMLSelectElement)?.value ??
+      "medium";
+    const status =
+      (form.elements.namedItem("task-status") as HTMLSelectElement)?.value ??
+      "todo";
     setError(null);
     callTaskAction("POST", "/api/tasks", {
       title,
@@ -376,7 +351,12 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
           onChange={(e) => setProjectId(e.target.value)}
           style={{ maxWidth: 280 }}
         />
-        <Button variant="primary" size="sm" onClick={loadTasks} disabled={loading}>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={loadTasks}
+          disabled={loading}
+        >
           {loading ? "Chargement…" : "Charger les tâches"}
         </Button>
       </div>
@@ -384,7 +364,9 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
       {error && <Alert variant="danger">{error}</Alert>}
 
       <Form onSubmit={handleCreateTask} className="mb-4">
-        <Form.Label className="small">Nouvelle tâche (projectId = {projectId || "—"})</Form.Label>
+        <Form.Label className="small">
+          Nouvelle tâche (projectId = {projectId || "—"})
+        </Form.Label>
         <InputGroup className="mb-2">
           <Form.Control
             name="task-title"
@@ -392,12 +374,20 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
             placeholder="Titre de la tâche"
             required
           />
-          <Form.Select name="task-priority" aria-label="Priorité" style={{ maxWidth: 120 }}>
+          <Form.Select
+            name="task-priority"
+            aria-label="Priorité"
+            style={{ maxWidth: 120 }}
+          >
             <option value="low">Basse</option>
             <option value="medium">Moyenne</option>
             <option value="high">Haute</option>
           </Form.Select>
-          <Form.Select name="task-status" aria-label="Statut" style={{ maxWidth: 130 }}>
+          <Form.Select
+            name="task-status"
+            aria-label="Statut"
+            style={{ maxWidth: 130 }}
+          >
             <option value="todo">À faire</option>
             <option value="in_progress">En cours</option>
             <option value="done">Terminé</option>
@@ -411,7 +401,9 @@ function TasksView({ onAuthRequired }: TasksViewProps) {
       {tasks === null && !loading && projectId.trim() && (
         <p className="text-muted small">Cliquez sur « Charger les tâches ».</p>
       )}
-      {tasks && tasks.length === 0 && <p className="text-muted">Aucune tâche.</p>}
+      {tasks && tasks.length === 0 && (
+        <p className="text-muted">Aucune tâche.</p>
+      )}
       {tasks && tasks.length > 0 && (
         <Table size="sm" bordered responsive>
           <thead>
@@ -495,16 +487,28 @@ function TaskRow({
             Assigner
           </Button>
           {task.status !== "done" && (
-            <Button size="sm" variant="outline-success" onClick={() => onComplete(task.id)}>
+            <Button
+              size="sm"
+              variant="outline-success"
+              onClick={() => onComplete(task.id)}
+            >
               Terminer
             </Button>
           )}
           {task.status === "done" && (
-            <Button size="sm" variant="outline-warning" onClick={() => onReopen(task.id)}>
+            <Button
+              size="sm"
+              variant="outline-warning"
+              onClick={() => onReopen(task.id)}
+            >
               Réouvrir
             </Button>
           )}
-          <Button size="sm" variant="outline-danger" onClick={() => onDelete(task.id)}>
+          <Button
+            size="sm"
+            variant="outline-danger"
+            onClick={() => onDelete(task.id)}
+          >
             Supprimer
           </Button>
         </div>
@@ -517,6 +521,7 @@ interface TodoListCardProps {
   onAuthRequired: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TodoListCard({ onAuthRequired }: TodoListCardProps) {
   const [items, setItems] = React.useState<Item[] | null>(null);
 
@@ -528,7 +533,7 @@ function TodoListCard({ onAuthRequired }: TodoListCardProps) {
       }
       return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
     },
-    [onAuthRequired]
+    [onAuthRequired],
   );
 
   React.useEffect(() => {
@@ -627,7 +632,9 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
       <InputGroup className="mb-3">
         <Form.Control
           value={newItem}
-          onChange={(e: React.ChangeEvent<{ value: string }>) => setNewItem(e.target.value)}
+          onChange={(e: React.ChangeEvent<{ value: string }>) =>
+            setNewItem(e.target.value)
+          }
           type="text"
           placeholder="New Item"
           aria-describedby="basic-addon1"
@@ -685,7 +692,9 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               id="add-dueDate"
               type="date"
               value={dueDate}
-              onChange={(e: React.ChangeEvent<{ value: string }>) => setDueDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<{ value: string }>) =>
+                setDueDate(e.target.value)
+              }
               aria-label="Date d'échéance"
             />
           </Form.Group>
