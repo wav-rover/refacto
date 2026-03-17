@@ -75,7 +75,7 @@ services:
       - PROJECT_SERVICE_URL=http://project-service:3001
       - TASK_SERVICE_URL=http://task-service:3002
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
-      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:3100}
     depends_on:
       - auth-service
       - project-service
