@@ -11,17 +11,9 @@ import {
 } from "react-bootstrap";
 import { apiBaseUrl } from "./config";
 import { Status, Priority, Item } from "../ports/itemRepository";
+import ProjectsView from "./ProjectsView";
 
 type ChangeEvent<T> = React.ChangeEvent<T>;
-
-interface Project {
-  id: string;
-  name: string;
-  ownerId: string;
-  memberIds: string[];
-  status: "open" | "closed";
-  createdAt: string;
-}
 
 type AuthState = "checking" | "logged_out" | "logged_in";
 
@@ -135,7 +127,6 @@ function App() {
             </Button>
           </div>
           <ProjectsView onAuthRequired={handleAuthRequired} />
-          <TodoListCard onAuthRequired={handleAuthRequired} />
         </Col>
       </Row>
     </Container>
@@ -210,247 +201,11 @@ function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   );
 }
 
-interface ProjectsViewProps {
-  onAuthRequired: () => void;
-}
-
-function ProjectsView({ onAuthRequired }: ProjectsViewProps) {
-  const [projects, setProjects] = React.useState<Project[] | null>(null);
-  const [listError, setListError] = React.useState<string | null>(null);
-  const [createError, setCreateError] = React.useState<string | null>(null);
-
-  const fetchProjects = React.useCallback(() => {
-    setListError(null);
-    fetch(`${apiBaseUrl}/api/projects`, { credentials: "include" })
-      .then((r) => {
-        if (r.status === 401) {
-          onAuthRequired();
-          return Promise.reject(new Error("401"));
-        }
-        if (!r.ok) return Promise.reject(new Error(String(r.status)));
-        return r.json();
-      })
-      .then((data: Project[]) => setProjects(data))
-      .catch(() => setListError("Impossible de charger les projets."));
-  }, [onAuthRequired]);
-
-  React.useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
-
-  if (projects === null && !listError) return <p>Chargement...</p>;
-  if (listError) return <p className="text-danger">{listError}</p>;
-
-  return (
-    <section className="mb-4">
-      <h3 className="mb-3">Projets</h3>
-      <CreateProjectForm
-        onCreated={fetchProjects}
-        onError={(msg) => setCreateError(msg)}
-        onAuthRequired={onAuthRequired}
-      />
-      {createError && (
-        <p className="text-danger small mb-2">{createError}</p>
-      )}
-      <ul className="list-unstyled">
-        {(projects ?? []).map((project) => (
-          <ProjectRow
-            key={project.id}
-            project={project}
-            onUpdated={fetchProjects}
-            onAuthRequired={onAuthRequired}
-          />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-interface CreateProjectFormProps {
-  onCreated: () => void;
-  onError: (msg: string | null) => void;
-  onAuthRequired: () => void;
-}
-
-function CreateProjectForm({
-  onCreated,
-  onError,
-  onAuthRequired,
-}: CreateProjectFormProps) {
-  const [name, setName] = React.useState("");
-  const [submitting, setSubmitting] = React.useState(false);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setSubmitting(true);
-    onError(null);
-    fetch(`${apiBaseUrl}/api/projects`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ name: trimmed }),
-    })
-      .then((r) => {
-        if (r.status === 401) {
-          onAuthRequired();
-          return Promise.reject(new Error("401"));
-        }
-        if (!r.ok) return Promise.reject(new Error(String(r.status)));
-        return r.json();
-      })
-      .then(() => {
-        setName("");
-        onCreated();
-      })
-      .catch(() => onError("Erreur lors de la création."))
-      .finally(() => setSubmitting(false));
-  };
-
-  return (
-    <Form onSubmit={handleSubmit} className="mb-3">
-      <InputGroup>
-        <Form.Control
-          type="text"
-          placeholder="Nom du projet"
-          value={name}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-          aria-label="Nom du projet"
-        />
-        <Button type="submit" variant="primary" disabled={!name.trim() || submitting}>
-          {submitting ? "Création..." : "Créer"}
-        </Button>
-      </InputGroup>
-    </Form>
-  );
-}
-
-interface ProjectRowProps {
-  project: Project;
-  onUpdated: () => void;
-  onAuthRequired: () => void;
-}
-
-function ProjectRow({ project, onUpdated, onAuthRequired }: ProjectRowProps) {
-  const [actionError, setActionError] = React.useState<string | null>(null);
-  const [newMemberId, setNewMemberId] = React.useState("");
-
-  const handleResponse = (r: Response) => {
-    if (r.status === 401) {
-      onAuthRequired();
-      return Promise.reject(new Error("401"));
-    }
-    if (!r.ok) return Promise.reject(new Error(String(r.status)));
-    return r.json();
-  };
-
-  const closeProject = () => {
-    setActionError(null);
-    fetch(`${apiBaseUrl}/api/projects/${project.id}/close`, {
-      method: "POST",
-      credentials: "include",
-    })
-      .then(handleResponse)
-      .then(() => onUpdated())
-      .catch(() => setActionError("Impossible de clore le projet."));
-  };
-
-  const addMember = () => {
-    const userId = newMemberId.trim();
-    if (!userId) return;
-    setActionError(null);
-    fetch(`${apiBaseUrl}/api/projects/${project.id}/members`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ userId }),
-    })
-      .then(handleResponse)
-      .then(() => {
-        setNewMemberId("");
-        onUpdated();
-      })
-      .catch(() => setActionError("Impossible d'ajouter le membre."));
-  };
-
-  const removeMember = (userId: string) => {
-    setActionError(null);
-    fetch(`${apiBaseUrl}/api/projects/${project.id}/members/${userId}`, {
-      method: "DELETE",
-      credentials: "include",
-    })
-      .then(handleResponse)
-      .then(() => onUpdated())
-      .catch(() => setActionError("Impossible de retirer le membre."));
-  };
-
-  const statusLabel = project.status === "open" ? "Ouvert" : "Clos";
-  const memberCount = project.memberIds?.length ?? 0;
-
-  return (
-    <li className="border rounded p-2 mb-2">
-      <div className="d-flex justify-content-between align-items-center flex-wrap gap-1">
-        <span>
-          <strong>{project.name}</strong>
-          <span className="text-muted small ms-2">
-            · {memberCount} membre{memberCount !== 1 ? "s" : ""} · {statusLabel}
-          </span>
-        </span>
-        {project.status === "open" && (
-          <Button variant="outline-secondary" size="sm" onClick={closeProject}>
-            Clore
-          </Button>
-        )}
-      </div>
-      {actionError && (
-        <p className="text-danger small mb-1 mt-1">{actionError}</p>
-      )}
-      {project.status === "open" && (
-        <div className="mt-2 small">
-          <div className="d-flex align-items-center gap-1 mb-1">
-            <Form.Control
-              type="text"
-              size="sm"
-              placeholder="ID utilisateur"
-              value={newMemberId}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setNewMemberId(e.target.value)
-              }
-              className="flex-grow-1"
-              style={{ maxWidth: "200px" }}
-            />
-            <Button size="sm" variant="outline-primary" onClick={addMember}>
-              Ajouter membre
-            </Button>
-          </div>
-          {memberCount > 0 && (
-            <ul className="list-unstyled mb-0">
-              {project.memberIds.map((uid) => (
-                <li key={uid} className="d-flex align-items-center gap-1">
-                  <span className="text-muted">{uid}</span>
-                  <Button
-                    size="sm"
-                    variant="link"
-                    className="p-0 text-danger small"
-                    onClick={() => removeMember(uid)}
-                  >
-                    Retirer
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </li>
-  );
-}
-
 interface TodoListCardProps {
   onAuthRequired: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TodoListCard({ onAuthRequired }: TodoListCardProps) {
   const [items, setItems] = React.useState<Item[] | null>(null);
 
@@ -561,7 +316,9 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
       <InputGroup className="mb-3">
         <Form.Control
           value={newItem}
-          onChange={(e: React.ChangeEvent<{ value: string }>) => setNewItem(e.target.value)}
+          onChange={(e: React.ChangeEvent<{ value: string }>) =>
+            setNewItem(e.target.value)
+          }
           type="text"
           placeholder="New Item"
           aria-describedby="basic-addon1"
@@ -619,7 +376,9 @@ function AddItemForm({ onNewItem, onAuthRequired }: AddItemFormProps) {
               id="add-dueDate"
               type="date"
               value={dueDate}
-              onChange={(e: React.ChangeEvent<{ value: string }>) => setDueDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<{ value: string }>) =>
+                setDueDate(e.target.value)
+              }
               aria-label="Date d'échéance"
             />
           </Form.Group>
