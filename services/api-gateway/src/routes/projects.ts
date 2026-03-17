@@ -7,6 +7,8 @@ import { requireAuthGateway } from "../middlewares/requireAuthGateway";
 
 const router = Router();
 
+router.use(requireAuthGateway);
+
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   const baseUrl = getProjectServiceUrl();
 
@@ -17,6 +19,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       method: "GET",
       headers: {
         accept: req.header("accept") ?? "application/json",
+        "x-user-id": req.header("x-user-id"),
         "x-request-id": req.header("x-request-id"),
       },
     });
@@ -30,8 +33,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     });
   }
 });
-
-router.use(requireAuthGateway);
 
 router.post("/", async (req: Request, res: Response): Promise<void> => {
   const baseUrl = getProjectServiceUrl();

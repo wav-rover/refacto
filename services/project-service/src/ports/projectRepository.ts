@@ -13,6 +13,7 @@ export interface ProjectRepository {
   create(project: NewProject): Promise<Project>;
   findById(id: ProjectId): Promise<Project | null>;
   findAll(): Promise<Project[]>;
+  findByUser(userId: string): Promise<Project[]>;
   update(id: ProjectId, update: ProjectUpdate): Promise<Project | null>;
   addMember(projectId: ProjectId, userId: string): Promise<Project | null>;
   removeMember(projectId: ProjectId, userId: string): Promise<Project | null>;
