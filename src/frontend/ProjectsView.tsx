@@ -15,6 +15,7 @@ interface Project {
 
 interface ProjectsViewProps {
   onAuthRequired: () => void;
+  onViewTasks: (projectId: string) => void;
 }
 
 async function getApiErrorMessage(
@@ -25,7 +26,7 @@ async function getApiErrorMessage(
   return payload?.message ?? fallbackMessage;
 }
 
-function ProjectsView({ onAuthRequired }: ProjectsViewProps) {
+function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
   const [projects, setProjects] = React.useState<Project[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [newProjectName, setNewProjectName] = React.useState("");
@@ -293,6 +294,14 @@ function ProjectsView({ onAuthRequired }: ProjectsViewProps) {
                 {new Date(project.createdAt).toLocaleDateString("fr-FR")}
               </span>
               <div className="mt-1">
+                <Button
+                  size="sm"
+                  variant="outline-primary"
+                  onClick={() => onViewTasks(project.id)}
+                  className="me-2"
+                >
+                  Voir les tâches
+                </Button>
                 {project.status === "open" && (
                   <Button
                     size="sm"
