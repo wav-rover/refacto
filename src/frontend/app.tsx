@@ -4,11 +4,12 @@ import { Container, Row, Col, Button, Alert, Form } from "react-bootstrap";
 import { apiBaseUrl } from "./config";
 import ProjectsView from "./ProjectsView";
 import TasksView from "./TasksView";
+import NotificationsView from "./NotificationsView";
 
 type ChangeEvent<T> = React.ChangeEvent<T>;
 
 type AuthState = "checking" | "logged_out" | "logged_in";
-type AppView = "projects" | "tasks";
+type AppView = "projects" | "tasks" | "notifications";
 
 function App() {
   const [authState, setAuthState] = React.useState<AuthState>("checking");
@@ -132,12 +133,30 @@ function App() {
               Déconnexion
             </Button>
           </div>
+          <div className="d-flex gap-2 mb-3">
+            <Button
+              type="button"
+              variant={view === "projects" ? "primary" : "outline-primary"}
+              size="sm"
+              onClick={() => setView("projects")}
+            >
+              Projets
+            </Button>
+            <Button
+              type="button"
+              variant={view === "notifications" ? "primary" : "outline-primary"}
+              size="sm"
+              onClick={() => setView("notifications")}
+            >
+              Notifications
+            </Button>
+          </div>
           {view === "projects" ? (
             <ProjectsView
               onAuthRequired={handleAuthRequired}
               onViewTasks={handleViewProjectTasks}
             />
-          ) : (
+          ) : view === "tasks" ? (
             <>
               <Button
                 type="button"
@@ -153,6 +172,8 @@ function App() {
                 initialProjectId={selectedProjectId ?? ""}
               />
             </>
+          ) : (
+            <NotificationsView onAuthRequired={handleAuthRequired} />
           )}
         </Col>
       </Row>
