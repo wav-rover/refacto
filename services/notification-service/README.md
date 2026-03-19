@@ -1,6 +1,6 @@
-# notification-service – Notifications métier (Phase 4)
+# notification-service – Notifications métier
 
-Service dédié à la réaction aux événements métier émis par les autres services. Il ne contient pas de logique métier propre aux tâches ou projets ; il interprète des événements et les transforme en notifications utilisateur. Il n’est jamais appelé directement par les autres services (communication via broker Redis Streams). Référence : [regles-metier-notification-service](../../doc/regles-metier-notification-service.md).
+Service dédié à la réaction aux événements métier émis par les autres services. Il ne contient pas de logique métier propre aux tâches ou projets ; il interprète des événements et les transforme en notifications utilisateur. Il n’est jamais appelé directement par les autres services (communication via broker Redis Streams). Référence : [regles-metier-notification-service](../../doc/regles-metier/regles-metier-notification-service.md).
 
 **Contrat des événements** : types et payloads définis dans [contrat-evenements.md](../../doc/architecture/contrat-evenements.md).
 

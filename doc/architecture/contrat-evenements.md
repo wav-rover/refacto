@@ -17,7 +17,7 @@ Document partagé qui fixe les types d’événements, les payloads et les conve
 
 ## 2. Payload par type
 
-Champs attendus pour chaque type, alignés avec les règles métier ([task](../regles-metier-task-service.md), [project](../regles-metier-project-service.md), [notification](../regles-metier-notification-service.md)).
+Champs attendus pour chaque type, alignés avec les règles métier ([task](../regles-metier/regles-metier-task-service.md), [project](../regles-metier/regles-metier-project-service.md), [notification](../regles-metier/regles-metier-notification-service.md)).
 
 | Type | Champs | Description |
 |------|--------|-------------|

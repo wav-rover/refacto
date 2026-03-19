@@ -1,6 +1,6 @@
 # Services (mono-repository)
 
-Arborescence des services de l’architecture phase 2. Chaque service est isolé : son propre `package.json`, son propre `Dockerfile`, aucune dépendance directe vers un autre service.
+Arborescence des services de l’architecture microservices. Chaque service est isolé : son propre `package.json`, son propre `Dockerfile`, aucune dépendance directe vers un autre service.
 
 **Ports et persistance :** chaque service a ses propres ports (interfaces) et sa couche persistance, sur le modèle du monolithe. Voir [ports-et-persistence.md](./ports-et-persistence.md) pour le détail (auth-service en référence).
 
@@ -21,11 +21,14 @@ Arborescence des services de l’architecture phase 2. Chaque service est isolé
 
 Cette règle sera vérifiable par dependency-cruiser ou lint lorsque les autres services existeront.
 
-Référence : [Phase 2 – Cœur technique](../doc/phases/refacto-2-archi/phase-2-archi-coeur-technique-repartition-taches.md), [Plan de refonte architecture](../doc/plan-refonte-architecture.md).
+Références :
+- [ADR](../doc/adr/) (décisions)
+- [Règles d’architecture](../doc/architecture/regles-architecture.md) (contraintes de dépendances)
+- [Contrat des événements](../doc/architecture/contrat-evenements.md) (broker / événements)
 
 ## project-service
 
-Gestion des projets et des membres (phase 3). Endpoints : création projet, liste/détail, mise à jour, clôture, ajout/retrait de membres. L’utilisateur courant est identifié par le header **`X-User-Id`**. Persistance : SQLite ou InMemory (tests). Voir [project-service/README.md](./project-service/README.md) pour les endpoints et règles métier.
+Gestion des projets et des membres. Endpoints : création projet, liste/détail, mise à jour, clôture, ajout/retrait de membres. L’utilisateur courant est identifié par le header **`X-User-Id`**. Persistance : SQLite ou InMemory (tests). Voir [project-service/README.md](./project-service/README.md) pour les endpoints et règles métier.
 
 ### Lancer en local
 
@@ -57,7 +60,7 @@ Sans volume (données éphémères) : `docker run -p 3001:3001 project-service`.
 
 ## task-service
 
-Service squelette (sans logique métier) : démarre et répond sur `GET /`.
+Service de gestion des tâches (création, mise à jour, affectation, complétion) et publication d’événements métier (Redis Streams) selon le contrat.
 
 ### Lancer en local
 
@@ -89,7 +92,7 @@ Puis ouvrir http://localhost:3002/
 
 ## notification-service
 
-Service squelette (sans logique métier) : démarre et répond sur `GET /`.
+Service de notifications métier : consomme les événements (Redis Streams) et expose `GET /notifications` pour l’utilisateur courant.
 
 ### Lancer en local
 
@@ -121,7 +124,7 @@ Puis ouvrir http://localhost:3003/
 
 ## auth-service
 
-Service squelette (sans logique métier) : démarre et répond sur `GET /`. L’authentification (register, login, me) sera implémentée dans la phase 2 (tâche Jeremy – Service d’authentification).
+Service d’authentification minimale : `register`, `login` (session HTTP), `me`. Persistance SQLite locale au service.
 
 ### Lancer en local
 
@@ -161,7 +164,7 @@ En production, définir `SESSION_SECRET` : `docker run -p 3004:3004 -e SESSION_S
 
 ---
 
-## Docker Compose (phase 2 – broker + services)
+## Docker Compose (broker + services)
 
 Pour lancer Redis et les quatre services ensemble en local :
 

@@ -1,10 +1,12 @@
-# auth-service – Authentification minimale (Phase 2)
+# auth-service – Authentification minimale
 
 Service d’authentification dédié, responsable de :
 
 - la création d’utilisateurs (`register`) ;
 - la connexion (`login`) ;
 - la récupération de l’utilisateur courant (`me`).
+
+Référence métier : [regles-metier-auth-service](../../doc/regles-metier/regles-metier-auth-service.md).
 
 Les utilisateurs sont stockés dans une base SQLite locale au service (`data/auth-users.db` par défaut) via `UserRepository`.
 

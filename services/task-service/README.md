@@ -1,10 +1,10 @@
-# task-service – Gestion des tâches et affectations (Phase 4)
+# task-service – Gestion des tâches et affectations
 
-Service dédié à la création et à la gestion des tâches et de leur affectation à des membres de projet. Référence métier : [regles-metier-task-service](../../doc/regles-metier-task-service.md).
+Service dédié à la création et à la gestion des tâches et de leur affectation à des membres de projet. Référence métier : [regles-metier-task-service](../../doc/regles-metier/regles-metier-task-service.md).
 
 ## Identification de l'utilisateur courant
 
-En phase 3, l'utilisateur courant est transmis par le **header `X-User-Id`** (posé par le client après login ou par le futur gateway). Toutes les routes qui modifient des données exigent ce header ; sinon la réponse est `401 Unauthorized`.
+L'utilisateur courant est transmis par le **header `X-User-Id`** (posé par le client après login ou par le gateway). Toutes les routes qui modifient des données exigent ce header ; sinon la réponse est `401 Unauthorized`.
 
 ## Endpoints
 

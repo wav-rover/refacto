@@ -1,6 +1,6 @@
 # project-service – Gestion des projets et des membres
 
-Service dédié à la création et à la gestion des projets et de leurs membres. Référence métier : [regles-metier-project-service](../../doc/regles-metier-project-service.md).
+Service dédié à la création et à la gestion des projets et de leurs membres. Référence métier : [regles-metier-project-service](../../doc/regles-metier/regles-metier-project-service.md).
 
 ## Identification de l’utilisateur courant
 
