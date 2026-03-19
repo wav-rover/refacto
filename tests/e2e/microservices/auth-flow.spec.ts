@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Authentification Microservices", () => {
-  const uniqueEmail = `test-${Date.now()}@example.com`;
   const password = "testpassword123";
 
   test("Afficher le formulaire de login quand non connecté", async ({
@@ -20,6 +19,7 @@ test.describe("Authentification Microservices", () => {
   });
 
   test("Inscription d'un nouvel utilisateur", async ({ page }) => {
+    const uniqueEmail = `test-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
     await page.goto("/");
     await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
 
@@ -27,7 +27,17 @@ test.describe("Authentification Microservices", () => {
     await page.locator("#login-password").fill(password);
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 10000 });
+    // En cas de collision (rare en local, mais possible si volumes persistants),
+    // l'UI affiche "Email déjà utilisé" et on peut basculer sur "Se connecter".
+    const emailAlreadyUsed = await page
+      .getByText(/Email déjà utilisé|already in use/i)
+      .isVisible()
+      .catch(() => false);
+    if (emailAlreadyUsed) await page.getByRole("button", { name: "Se connecter" }).click();
+
+    await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       page.getByRole("button", { name: "Déconnexion" })
     ).toBeVisible();
@@ -60,16 +70,22 @@ test.describe("Authentification Microservices", () => {
 
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
-    const errorVisible = await page
-      .getByText(/existe déjà|already exists/i)
-      .isVisible()
-      .catch(() => false);
+    const projectsHeading = page.getByRole("heading", { name: "Projets" });
+    const emailAlreadyUsedMessage = page.getByText(
+      /Email déjà utilisé|already in use/i
+    );
 
-    if (errorVisible) {
+    // Attendre soit la redirection vers "Projets", soit l'erreur "Email déjà utilisé".
+    await Promise.race([
+      projectsHeading.waitFor({ state: "visible", timeout: 10000 }),
+      emailAlreadyUsedMessage.waitFor({ state: "visible", timeout: 10000 }),
+    ]);
+
+    if (await emailAlreadyUsedMessage.isVisible().catch(() => false)) {
       await page.getByRole("button", { name: "Se connecter" }).click();
     }
 
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 10000 });
+    await expect(projectsHeading).toBeVisible({ timeout: 10000 });
   });
 
   test("Logout revient à l'écran de connexion", async ({ page }) => {
@@ -80,7 +96,9 @@ test.describe("Authentification Microservices", () => {
     await page.locator("#login-password").fill("testpassword123");
     await page.getByRole("button", { name: "Se connecter" }).click();
 
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible({
+      timeout: 10000,
+    });
 
     await page.getByRole("button", { name: "Déconnexion" }).click();
 

@@ -3,7 +3,9 @@ import { test, expect } from "@playwright/test";
 test.describe("Notifications", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Projets" })
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("Afficher la vue notifications", async ({ page }) => {
@@ -65,8 +67,11 @@ test.describe("Notifications", () => {
     await page.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(page.getByText(taskTitle)).toBeVisible({ timeout: 5000 });
 
-    const taskRow = page.locator("table tbody tr").filter({ hasText: taskTitle });
-    const testUserId = "test-user-notif";
+    const taskRow = page
+      .locator("table tbody tr")
+      .filter({ hasText: taskTitle });
+    // Un userId unique pour éviter les conflits métier (1 tâche active par user).
+    const testUserId = `test-user-notif-${Date.now()}`;
     await taskRow.locator('input[placeholder="userId"]').fill(testUserId);
     await taskRow.getByRole("button", { name: "Assigner" }).click();
 
@@ -74,8 +79,12 @@ test.describe("Notifications", () => {
       timeout: 5000,
     });
 
-    await page.getByRole("button", { name: "Projets" }).click();
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 5000 });
+    await page
+      .getByRole("button", { name: "Projets", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Projets" })
+    ).toBeVisible({ timeout: 5000 });
 
     await page.getByRole("button", { name: "Notifications" }).click();
     await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
@@ -110,7 +119,8 @@ test.describe("Notifications", () => {
     await taskRow.getByRole("button", { name: "Terminer" }).click();
     await expect(taskRow).toContainText("Terminé", { timeout: 5000 });
 
-    await page.getByRole("button", { name: "Projets" }).click();
+    // Sur l'écran "Tâches", le bouton de retour est "Retour aux projets".
+    await page.getByRole("button", { name: "Retour aux projets" }).click();
     await page.getByRole("button", { name: "Notifications" }).click();
 
     await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
@@ -139,14 +149,16 @@ test.describe("Notifications", () => {
   });
 
   test("Basculer entre les vues Projets et Notifications", async ({ page }) => {
-    await expect(page.getByText("Projets")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible();
 
     await page.getByRole("button", { name: "Notifications" }).click();
     await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
       timeout: 5000,
     });
 
-    await page.getByRole("button", { name: "Projets" }).click();
+    await page
+      .getByRole("button", { name: "Projets", exact: true })
+      .click();
     await expect(page.getByRole("heading", { name: "Projets" })).toBeVisible({
       timeout: 5000,
     });

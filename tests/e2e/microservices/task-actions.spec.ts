@@ -11,13 +11,20 @@ test.describe("Actions sur les tâches", () => {
 
   async function createProjectAndNavigateToTasks(page: import("@playwright/test").Page) {
     await page.goto("/");
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Projets" })
+    ).toBeVisible({ timeout: 15000 });
 
     await page.locator("#project-name").fill(projectName);
     await page.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("li").filter({ hasText: projectName }).first()
+    ).toBeVisible({ timeout: 10000 });
 
-    const projectRow = page.locator("li").filter({ hasText: projectName });
+    const projectRow = page
+      .locator("li")
+      .filter({ hasText: projectName })
+      .last();
     await projectRow.getByRole("button", { name: "Voir les tâches" }).click();
     await expect(page.getByText("Tâches du projet")).toBeVisible({
       timeout: 10000,
@@ -51,16 +58,33 @@ test.describe("Actions sur les tâches", () => {
     const taskTitle = `Tâche à modifier ${Date.now()}`;
     await createTask(page, taskTitle, "low", "todo", formatDate(7));
 
-    const row = page.locator("table tbody tr").filter({ hasText: taskTitle });
+    // Une fois en mode édition, le texte du titre peut ne plus être présent (value vs text),
+    // donc on évite de réutiliser un locator basé sur hasText(taskTitle) pour remplir.
+    const row = page
+      .locator("table tbody tr")
+      .filter({ hasText: taskTitle })
+      .first();
     await row.getByRole("button", { name: "Éditer" }).click();
 
     const newTitle = `Tâche modifiée ${Date.now()}`;
-    await row.locator('input[aria-label="Titre"]').fill(newTitle);
-    await row.locator('select[aria-label="Statut"]').selectOption("in_progress");
-    await row.locator('select[aria-label="Priorité"]').selectOption("high");
-    await row.locator('input[aria-label="Date d\'échéance"]').fill(formatDate(14));
+    // Cibler uniquement la ligne en mode édition (celle qui contient "Enregistrer").
+    const editRow = page
+      .getByRole("button", { name: "Enregistrer" })
+      .first()
+      .locator("xpath=ancestor::tr");
 
-    await row.getByRole("button", { name: "Enregistrer" }).click();
+    await editRow.locator('input[aria-label="Titre"]').fill(newTitle);
+    await editRow
+      .locator('select[aria-label="Statut"]')
+      .selectOption("in_progress");
+    await editRow
+      .locator('select[aria-label="Priorité"]')
+      .selectOption("high");
+    await editRow
+      .locator("input[aria-label=\"Date d'échéance\"]")
+      .fill(formatDate(14));
+
+    await editRow.getByRole("button", { name: "Enregistrer" }).click();
 
     await expect(page.getByText(newTitle)).toBeVisible({ timeout: 5000 });
     const updatedRow = page.locator("table tbody tr").filter({ hasText: newTitle });
@@ -96,7 +120,7 @@ test.describe("Actions sur les tâches", () => {
 
     await expect(row.locator("td").nth(4)).toContainText("—");
 
-    const userIdToAssign = "user-123";
+    const userIdToAssign = `user-${Date.now()}`;
     await row.locator('input[placeholder="userId"]').fill(userIdToAssign);
     await row.getByRole("button", { name: "Assigner" }).click();
 
@@ -128,14 +152,21 @@ test.describe("Actions sur les tâches", () => {
 
   test("Clôturer un projet", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Projets" })
+    ).toBeVisible({ timeout: 15000 });
 
     const closeProjectName = `Projet à clore ${Date.now()}`;
     await page.locator("#project-name").fill(closeProjectName);
     await page.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText(closeProjectName)).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("li").filter({ hasText: closeProjectName }).first()
+    ).toBeVisible({ timeout: 10000 });
 
-    const projectRow = page.locator("li").filter({ hasText: closeProjectName });
+    const projectRow = page
+      .locator("li")
+      .filter({ hasText: closeProjectName })
+      .last();
     await expect(projectRow).toContainText("Ouvert");
 
     await projectRow.getByRole("button", { name: "Clore" }).click();

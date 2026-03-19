@@ -49,14 +49,18 @@ test.describe("Projet et Tâches - Flux principal", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Projets")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Projets" })
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("Créer un projet", async ({ page }) => {
     await page.locator("#project-name").fill(projectName);
     await page.getByRole("button", { name: "Créer" }).click();
 
-    await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("li").filter({ hasText: projectName }).first()
+    ).toBeVisible({ timeout: 10000 });
     await expect(page.locator("li").filter({ hasText: projectName })).toContainText("Ouvert");
   });
 
@@ -65,9 +69,14 @@ test.describe("Projet et Tâches - Flux principal", () => {
   }) => {
     await page.locator("#project-name").fill(projectName);
     await page.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("li").filter({ hasText: projectName }).first()
+    ).toBeVisible({ timeout: 10000 });
 
-    const projectRow = page.locator("li").filter({ hasText: projectName });
+    const projectRow = page
+      .locator("li")
+      .filter({ hasText: projectName })
+      .last();
     await projectRow.getByRole("button", { name: "Voir les tâches" }).click();
 
     await expect(page.getByText("Tâches du projet")).toBeVisible({
@@ -97,9 +106,14 @@ test.describe("Projet et Tâches - Flux principal", () => {
   test("Vérifier les détails des tâches créées", async ({ page }) => {
     await page.locator("#project-name").fill(projectName);
     await page.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("li").filter({ hasText: projectName }).first()
+    ).toBeVisible({ timeout: 10000 });
 
-    const projectRow = page.locator("li").filter({ hasText: projectName });
+    const projectRow = page
+      .locator("li")
+      .filter({ hasText: projectName })
+      .last();
     await projectRow.getByRole("button", { name: "Voir les tâches" }).click();
 
     await expect(page.getByText("Tâches du projet")).toBeVisible({
