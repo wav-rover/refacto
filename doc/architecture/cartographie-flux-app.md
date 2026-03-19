@@ -1,74 +1,138 @@
-# Cartographie des flux principaux — `src/static/js/app.js`
+# Cartographie des flux principaux — front React (`src/frontend/*`)
 
-Ce document décrit les flux de création, modification, suppression et affichage des tâches dans l’application front-end.
+Ce document décrit les flux UI actuels (projets, tâches, notifications) et les appels faits au `api-gateway`.
 
 ---
 
-## 1. Affichage de la liste
+## 0. Démarrage & état d’auth
 
 | Élément | Détail |
 |--------|--------|
-| **Composant** | `TodoListCard` (l.14–63) |
-| **État** | `items` (`useState(null)`, l.15) |
+| **Composant** | `App` (`src/frontend/app.tsx`) |
 | **Déclencheur** | Montage du composant |
-| **Code** | `useEffect` (l.17–21) : `fetch("/items")` → `r.json()` → `setItems(...)` |
-| **API** | `GET /items` |
-| **Rendu** | Si `items === null` → "Loading..." (l.45). Sinon formulaire + liste ou message "No items yet!" (l.50–51) ; liste via `items.map` → `<ItemDisplay>` (l.53–60) |
-
-**Enchaînement :** Montage → `GET /items` → `setItems` → affichage liste ou états vides.
+| **Code** | `fetch(${apiBaseUrl}/api/auth/me, { credentials: 'include' })` |
+| **API** | `GET /api/auth/me` |
+| **Effet** | `authState` passe à `logged_in` ou `logged_out` |
 
 ---
 
-## 2. Création de tâche
+## 1. Vues Projets
+
+### 1.1 Chargement de la liste
 
 | Élément | Détail |
 |--------|--------|
-| **Composant** | `AddItemForm` (l.65–109), reçoit `onNewItem` en prop |
-| **État local** | `newItem` (saisie), `submitting` (l.68–69) |
-| **Déclencheur** | Soumission du formulaire (l.88) |
-| **Code** | `submitNewItem` (l.71–85) : `POST /items` avec `{ name: newItem }` → `r.json()` → `onNewItem(item)` puis `setNewItem("")`, `setSubmitting(false)` |
-| **API** | `POST /items`, body JSON `{ name: string }` |
-| **Remontée** | `onNewItem` dans `TodoListCard` (l.22–27) : `setItems([...items, newItem])` |
+| **Composant** | `ProjectsView` (`src/frontend/ProjectsView.tsx`) |
+| **Déclencheur** | `useEffect` après montage (ou après création/MAJ) |
+| **Code** | `fetch(/api/projects, { credentials: 'include' })` puis `setProjects(data)` |
+| **API** | `GET /api/projects` |
 
-**Enchaînement :** Submit formulaire → `POST /items` → réponse item → `onNewItem` → mise à jour de `items` → liste rafraîchie.
-
----
-
-## 3. Modification de tâche (cocher / décocher)
+### 1.2 Création d’un projet
 
 | Élément | Détail |
 |--------|--------|
-| **Composant** | `ItemDisplay` (l.111–171), reçoit `item`, `onItemUpdate`, `onItemRemoval` |
-| **Déclencheur** | Clic sur le bouton coche (l.141) |
-| **Code** | `toggleCompletion` (l.115–126) : `PUT /items/${item.id}` avec `{ name, completed: !item.completed }` → `r.json()` → `onItemUpdate(...)` |
-| **API** | `PUT /items/:id`, body JSON `{ name, completed }` |
-| **Remontée** | `onItemUpdate` dans `TodoListCard` (l.29–35) : `findIndex` par `item.id` puis `setItems([...slice(0, index), item, ...slice(index + 1)])` |
+| **Composant** | Form “Créer” dans `ProjectsView` |
+| **Code** | `POST /api/projects` avec body `{ name }` puis refresh via `fetchProjects()` |
+| **API** | `POST /api/projects` |
+| **Body** | `{ "name": "<string>" }` |
 
-**Enchaînement :** Clic coche → `PUT /items/:id` → réponse item → `onItemUpdate` → item remplacé dans `items` → liste rafraîchie.
-
----
-
-## 4. Suppression de tâche
+### 1.3 Clôture d’un projet
 
 | Élément | Détail |
 |--------|--------|
-| **Composant** | `ItemDisplay` (même composant que modification) |
-| **Déclencheur** | Clic sur le bouton poubelle (l.161) |
-| **Code** | `removeItem` (l.128–132) : `DELETE /items/${item.id}` → dans le `.then()`, `onItemRemoval(item)` |
-| **API** | `DELETE /items/:id` |
-| **Remontée** | `onItemRemoval` dans `TodoListCard` (l.37–43) : `findIndex` par `item.id` puis `setItems([...slice(0, index), ...slice(index + 1)])` |
+| **Composant** | Bouton “Clore” dans `ProjectsView` |
+| **Code** | `POST /api/projects/:projectId/close` puis refresh liste |
+| **API** | `POST /api/projects/:projectId/close` |
 
-**Enchaînement :** Clic supprimer → `DELETE /items/:id` → `onItemRemoval(item)` → item retiré de `items` → liste rafraîchie.
+### 1.4 Gestion des membres
+
+| Action | Code | API |
+|--------|------|-----|
+| Ajout membre | `POST /api/projects/:projectId/members` avec `{ userId }` puis refresh | `POST /api/projects/:projectId/members` |
+| Retrait membre | `DELETE /api/projects/:projectId/members/:userId` puis refresh | `DELETE /api/projects/:projectId/members/:userId` |
 
 ---
 
-## Synthèse
+## 2. Vues Tâches
 
-| Flux | Déclencheur | Méthode / Route | Callback parent | Effet sur l’état |
-|------|-------------|-----------------|-----------------|-------------------|
-| Affichage | Montage `TodoListCard` | `GET /items` | — | `setItems` (liste entière) |
-| Création | Submit `AddItemForm` | `POST /items` | `onNewItem` | `setItems` (ajout d’un item) |
-| Modification | Clic coche `ItemDisplay` | `PUT /items/:id` | `onItemUpdate` | `setItems` (remplacement d’un item) |
-| Suppression | Clic poubelle `ItemDisplay` | `DELETE /items/:id` | `onItemRemoval` | `setItems` (retrait d’un item) |
+### 2.1 Chargement des tâches d’un projet
 
-L’état de la liste (`items`) est détenu uniquement dans `TodoListCard` ; les composants enfants déclenchent les appels HTTP et notifient le parent via les callbacks passés en props.
+| Élément | Détail |
+|--------|--------|
+| **Composant** | `TasksView` (`src/frontend/TasksView.tsx`) |
+| **Déclencheur** | Cliquer sur “Afficher” ou changement de `projectId` |
+| **Code** | `fetch(/api/tasks/project/:projectId, { credentials: 'include' })` |
+| **API** | `GET /api/tasks/project/:projectId` |
+| **Effet** | `setTasks(data)` |
+
+### 2.2 Création d’une tâche
+
+| Élément | Détail |
+|--------|--------|
+| **Code** | `POST /api/tasks` avec `{ title, projectId, priority, status, dueDate }` puis refresh |
+| **API** | `POST /api/tasks` |
+| **Body** | `{ "title": "...", "projectId": "...", "priority": "...", "status": "...", "dueDate": "<string|null>" }` |
+
+### 2.3 Mise à jour d’une tâche
+
+| Élément | Détail |
+|--------|--------|
+| **Code** | `PATCH /api/tasks/:id` avec `{ title, status, priority, dueDate }` puis refresh |
+| **API** | `PATCH /api/tasks/:id` |
+
+### 2.4 Assignation / désassignation
+
+| Action | Code | API |
+|--------|------|-----|
+| Assigner | `POST /api/tasks/:id/assign` avec `{ userId }` puis refresh | `POST /api/tasks/:id/assign` |
+| Désassigner | `POST /api/tasks/:id/unassign` (body `{}`) puis refresh | `POST /api/tasks/:id/unassign` |
+
+### 2.5 Terminer / réouvrir
+
+| Action | Code | API |
+|--------|------|-----|
+| Terminer | `POST /api/tasks/:id/complete` (body `{}`) puis refresh | `POST /api/tasks/:id/complete` |
+| Réouvrir | `POST /api/tasks/:id/reopen` (body `{}`) puis refresh | `POST /api/tasks/:id/reopen` |
+
+Note : `task-service` lit `projectOwnerId` depuis le body pour publier les événements ; l’UI actuelle envoie `{}`.
+
+### 2.6 Suppression
+
+| Élément | Détail |
+|--------|--------|
+| **Code** | confirmation puis `DELETE /api/tasks/:id` puis refresh |
+| **API** | `DELETE /api/tasks/:id` |
+
+---
+
+## 3. Vues Notifications
+
+| Élément | Détail |
+|--------|--------|
+| **Composant** | `NotificationsView` (`src/frontend/NotificationsView.tsx`) |
+| **Déclencheur** | `useEffect` puis bouton “Rafraîchir” |
+| **Code** | `fetch(/api/notifications, { credentials: 'include' })` |
+| **API** | `GET /api/notifications` |
+| **Effet** | `setNotifications(data)` |
+
+---
+
+## Synthèse (API -> action UI)
+
+| Flux | Déclencheur | Méthode / Route |
+|------|-------------|-----------------|
+| Auth check | Montage `App` | `GET /api/auth/me` |
+| Projets list | Montage / refresh | `GET /api/projects` |
+| Projets create | Soumission formulaire | `POST /api/projects` |
+| Projets close | Clic “Clore” | `POST /api/projects/:projectId/close` |
+| Membre add | Soumission ajout | `POST /api/projects/:projectId/members` |
+| Membre remove | Clic “Retirer” | `DELETE /api/projects/:projectId/members/:userId` |
+| Tâches list | “Afficher” / changement projectId | `GET /api/tasks/project/:projectId` |
+| Tâches create | Soumission création | `POST /api/tasks` |
+| Tâches update | Clic “Enregistrer” en édition | `PATCH /api/tasks/:id` |
+| Tâches assign | Clic “Assigner” | `POST /api/tasks/:id/assign` |
+| Tâches unassign | Clic “Désassigner” | `POST /api/tasks/:id/unassign` |
+| Tâches complete | Clic “Terminer” | `POST /api/tasks/:id/complete` |
+| Tâches reopen | Clic “Réouvrir” | `POST /api/tasks/:id/reopen` |
+| Tâches delete | Clic “Supprimer” + confirm | `DELETE /api/tasks/:id` |
+| Notifications list | Montage / refresh | `GET /api/notifications` |
