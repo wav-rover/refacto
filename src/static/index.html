@@ -14,8 +14,8 @@
 
 <body>
   <div id="root"></div>
-  <!-- When front is served from another port (e.g. monolith on 3100), auth calls go to the Gateway. Set to "" if served from the Gateway (same origin). -->
-  <script>window.__API_BASE_URL__ = "http://localhost:3000";</script>
+  <!-- Default to same-origin in Docker frontend; set an explicit URL only for split-origin local dev. -->
+  <script>window.__API_BASE_URL__ = "";</script>
   <script src="js/app.js"></script>
 </body>
 

@@ -1,6 +1,15 @@
 name: todo
 
 services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:80"
+
   redis:
     image: redis:7-alpine
     ports:
@@ -15,8 +24,6 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     depends_on:
       - redis
-    ports:
-      - "3001:3001"
     volumes:
       - project-data:/app/data
 
@@ -30,8 +37,6 @@ services:
       - TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
     depends_on:
       - redis
-    ports:
-      - "3002:3002"
     volumes:
       - task-data:/app/data
 
@@ -45,8 +50,6 @@ services:
       - NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
     depends_on:
       - redis
-    ports:
-      - "3003:3003"
     volumes:
       - notification-data:/app/data
 
@@ -60,8 +63,6 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     depends_on:
       - redis
-    ports:
-      - "3004:3004"
     volumes:
       - auth-data:/app/data
 
@@ -75,15 +76,12 @@ services:
       - PROJECT_SERVICE_URL=http://project-service:3001
       - TASK_SERVICE_URL=http://task-service:3002
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
-      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:3100}
+      - FRONTEND_ORIGIN=http://localhost:3000
     depends_on:
       - auth-service
       - project-service
       - task-service
       - notification-service
-    ports:
-      - "3000:3000"
-
 volumes:
   auth-data:
   project-data:
