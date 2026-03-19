@@ -1,6 +1,8 @@
 // @ts-check
 import { defineConfig, devices } from "@playwright/test";
 
+const isDockerMode = process.env.E2E_MODE === "microservices";
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -15,6 +17,7 @@ export default defineConfig({
   },
 
   projects: [
+    // ===== Monolith (legacy) projects =====
     {
       name: "setup",
       testMatch: /auth\.setup\.ts/,
@@ -22,7 +25,7 @@ export default defineConfig({
 
     {
       name: "chromium-auth",
-      testMatch: /auth\.spec\.ts/,
+      testMatch: /e2e\/auth\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
       },
@@ -30,7 +33,7 @@ export default defineConfig({
 
     {
       name: "chromium",
-      testIgnore: /auth\.spec\.ts/,
+      testMatch: /e2e\/todo\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: "storageState.json",
@@ -40,7 +43,7 @@ export default defineConfig({
 
     {
       name: "firefox-auth",
-      testMatch: /auth\.spec\.ts/,
+      testMatch: /e2e\/auth\.spec\.ts/,
       use: {
         ...devices["Desktop Firefox"],
       },
@@ -48,7 +51,7 @@ export default defineConfig({
 
     {
       name: "firefox",
-      testIgnore: /auth\.spec\.ts/,
+      testMatch: /e2e\/todo\.spec\.ts/,
       use: {
         ...devices["Desktop Firefox"],
         storageState: "storageState.json",
@@ -58,7 +61,7 @@ export default defineConfig({
 
     {
       name: "webkit-auth",
-      testMatch: /auth\.spec\.ts/,
+      testMatch: /e2e\/auth\.spec\.ts/,
       use: {
         ...devices["Desktop Safari"],
       },
@@ -66,25 +69,56 @@ export default defineConfig({
 
     {
       name: "webkit",
-      testIgnore: /auth\.spec\.ts/,
+      testMatch: /e2e\/todo\.spec\.ts/,
       use: {
         ...devices["Desktop Safari"],
         storageState: "storageState.json",
       },
       dependencies: ["setup"],
     },
+
+    // ===== Microservices projects =====
+    {
+      name: "microservices-setup",
+      testMatch: /auth-microservices\.setup\.ts/,
+    },
+
+    {
+      name: "microservices-auth",
+      testMatch: /microservices\/auth-flow\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
+
+    {
+      name: "microservices",
+      testMatch: /microservices\/(?!auth-flow).*\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "storageState-microservices.json",
+      },
+      dependencies: ["microservices-setup"],
+    },
   ],
 
-  webServer: {
-    command: "npm run dev:no-watch",
-    url: "http://localhost:3000",
-    reuseExistingServer: false,
-    env: {
-      ...process.env,
-      NODE_ENV: "test",
-      AUTH_USERNAME: "admin",
-      AUTH_PASSWORD: "secret",
-      SESSION_SECRET: "test-session-secret",
-    },
-  },
+  webServer: isDockerMode
+    ? {
+        command: "docker-compose up --build",
+        url: "http://localhost:3000",
+        reuseExistingServer: true,
+        timeout: 120000,
+      }
+    : {
+        command: "npm run dev:no-watch",
+        url: "http://localhost:3000",
+        reuseExistingServer: false,
+        env: {
+          ...process.env,
+          NODE_ENV: "test",
+          AUTH_USERNAME: "admin",
+          AUTH_PASSWORD: "secret",
+          SESSION_SECRET: "test-session-secret",
+        },
+      },
 });
