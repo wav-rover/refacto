@@ -111,7 +111,7 @@ function App() {
       <Container>
         <Row>
           <Col md={{ offset: 2, span: 8 }}>
-            <h2 className="text-center mt-4 mb-4">Connexion</h2>
+            <h2 className="text-center mt-4 mb-4">Connexion / Inscription</h2>
             {authError && <Alert variant="danger">{authError}</Alert>}
             <LoginForm onLogin={handleLogin} onRegister={handleRegister} />
           </Col>
@@ -187,6 +187,23 @@ interface LoginFormProps {
 }
 
 function LoginForm({ onLogin, onRegister }: LoginFormProps) {
+  return (
+    <Row className="g-3">
+      <Col md={6}>
+        <LoginPanel onLogin={onLogin} />
+      </Col>
+      <Col md={6}>
+        <RegisterPanel onRegister={onRegister} />
+      </Col>
+    </Row>
+  );
+}
+
+interface LoginPanelProps {
+  onLogin: (email: string, password: string) => void;
+}
+
+function LoginPanel({ onLogin }: LoginPanelProps) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -199,53 +216,117 @@ function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <Form.Group className="mb-3">
-        <Form.Label htmlFor="login-email">Email</Form.Label>
-        <Form.Control
-          id="login-email"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setEmail(e.target.value)
-          }
-          required
-          aria-label="Email"
-        />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label htmlFor="login-password">Mot de passe</Form.Label>
-        <Form.Control
-          id="login-password"
-          type="password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setPassword(e.target.value)
-          }
-          required
-          aria-label="Mot de passe"
-        />
-      </Form.Group>
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={!email || !password || submitting}
-        className="w-100"
-      >
-        {submitting ? "Connexion..." : "Se connecter"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline-secondary"
-        disabled={!email || !password || submitting}
-        className="w-100 mt-2"
-        onClick={() => onRegister(email, password)}
-      >
-        Créer un compte
-      </Button>
-    </Form>
+    <>
+      <h3 className="text-center mb-3">Connexion</h3>
+      <Form onSubmit={handleSubmit}>
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="login-email">Email</Form.Label>
+          <Form.Control
+            id="login-email"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
+            required
+            aria-label="Email"
+          />
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="login-password">Mot de passe</Form.Label>
+          <Form.Control
+            id="login-password"
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
+            required
+            aria-label="Mot de passe"
+          />
+        </Form.Group>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!email || !password || submitting}
+          className="w-100"
+        >
+          {submitting ? "Connexion..." : "Se connecter"}
+        </Button>
+      </Form>
+    </>
+  );
+}
+
+interface RegisterPanelProps {
+  onRegister: (email: string, password: string) => void;
+}
+
+function RegisterPanel({ onRegister }: RegisterPanelProps) {
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [localError, setLocalError] = React.useState<string | null>(null);
+
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLocalError(null);
+    setSubmitting(true);
+    onRegister(email, password);
+    setTimeout(() => setSubmitting(false), 1000);
+  };
+
+  const isFormValid = !!email && !!password;
+
+  return (
+    <>
+      <h3 className="text-center mb-3">Inscription</h3>
+      <Form onSubmit={handleSubmit}>
+        {localError && (
+          <Alert variant="danger" className="py-2 mb-3">
+            {localError}
+          </Alert>
+        )}
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="register-email">Email</Form.Label>
+          <Form.Control
+            id="register-email"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
+            required
+            aria-label="Email"
+          />
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="register-password">Mot de passe</Form.Label>
+          <Form.Control
+            id="register-password"
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
+            required
+            aria-label="Mot de passe"
+          />
+        </Form.Group>
+        <Button
+          type="submit"
+          variant="success"
+          disabled={!isFormValid || submitting}
+          className="w-100"
+        >
+          {submitting ? "Inscription..." : "Créer un compte"}
+        </Button>
+      </Form>
+    </>
   );
 }
 

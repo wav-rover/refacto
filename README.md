@@ -35,7 +35,7 @@ docker compose up -d --build
 
 This starts:
 
-- Frontend (NGINX) **and** API Gateway together on **http://localhost:3000**
+- Frontend (NGINX) **and** API Gateway together on **[http://localhost:3000](http://localhost:3000)**
   - UI served at `/`
   - API exposed at `/api/...`
 - `auth-service`, `project-service`, `task-service`, `notification-service` on the Docker network only (no direct host ports needed)
@@ -48,29 +48,47 @@ The Gateway is the single entry point for the frontend:
 - Tasks: `/api/tasks/...`
 - Notifications: `/api/notifications`
 
-### 2. Créer un compte et utiliser l'application
+### 2. Inscription
 
-1. Ouvrir le navigateur sur **http://localhost:3000**.
-2. Sur l'écran de connexion, saisir un email et un mot de passe.
+1. Ouvrir le navigateur sur **[http://localhost:3000](http://localhost:3000)**.
+2. Sur le formulaire d'inscript, saisir un email et un mot de passe.
 3. Cliquer sur **"Créer un compte"** :
-   - Le frontend appelle `POST /api/auth/register` via le Gateway.
-   - En cas de succès, un login est enchaîné automatiquement (`POST /api/auth/login`) et la session est créée.
+  - Le frontend appelle `POST /api/auth/register` via le Gateway.
+  - En cas de succès, un login est enchaîné automatiquement (`POST /api/auth/login`) et la session est créée.
 4. Utiliser ensuite les vues **Projets**, **Tâches** et **Notifications** depuis le menu de l'UI.
 
 ---
 
-## Run tests
+## Tests
+
+### Jest
 
 ```bash
-npm run test           # Jest for microservices (auth, projects, tasks, notifications)
-npm run test:services  # Jest in domain services only (auth, projects, tasks, notifications)
-npm run test:e2e       # Playwright E2E (expects an app running on http://localhost:3000)
-npm run test:all       # Jest + Playwright
+npm run test  # Jest for microservices (auth, projects, tasks, notifications)
 ```
 
-## Lint
+### Playwright (E2E)
+
+```bash
+docker compose down
+npm run test:e2e  # Playwright E2E (app attendue sur http://localhost:3000)
+```
+
+Note : pour que les tests E2E soient fiables, évite d'avoir déjà le stack Docker lancé sur cette machine.
+Playwright démarre ensuite le serveur Docker automatiquement (via sa configuration).
+
+## Lint et deps
 
 ```bash
 npm run lint        # ESLint
 npm run lint:deps   # dependency-cruiser
 ```
+
+## Commandes annexes
+
+```bash
+npm run test:services  # Jest in domain services only (auth, projects, tasks, notifications)
+npm run test:all       # Jest + Playwright
+npm run build:front   # Build bundle frontend (esbuild)
+```
+

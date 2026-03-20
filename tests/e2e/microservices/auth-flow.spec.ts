@@ -7,7 +7,9 @@ test.describe("Authentification Microservices", () => {
     page,
   }) => {
     await page.goto("/");
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 15000 });
     await expect(page.locator("#login-email")).toBeVisible();
     await expect(page.locator("#login-password")).toBeVisible();
     await expect(
@@ -21,10 +23,14 @@ test.describe("Authentification Microservices", () => {
   test("Inscription d'un nouvel utilisateur", async ({ page }) => {
     const uniqueEmail = `test-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
     await page.goto("/");
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 15000 });
 
     await page.locator("#login-email").fill(uniqueEmail);
     await page.locator("#login-password").fill(password);
+    await page.locator("#register-email").fill(uniqueEmail);
+    await page.locator("#register-password").fill(password);
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
     // En cas de collision (rare en local, mais possible si volumes persistants),
@@ -47,7 +53,9 @@ test.describe("Authentification Microservices", () => {
     page,
   }) => {
     await page.goto("/");
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 15000 });
 
     await page.locator("#login-email").fill("wrong@example.com");
     await page.locator("#login-password").fill("wrongpassword");
@@ -63,10 +71,14 @@ test.describe("Authentification Microservices", () => {
     const existingPassword = "testpassword123";
 
     await page.goto("/");
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 15000 });
 
     await page.locator("#login-email").fill(existingEmail);
     await page.locator("#login-password").fill(existingPassword);
+    await page.locator("#register-email").fill(existingEmail);
+    await page.locator("#register-password").fill(existingPassword);
 
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
@@ -90,7 +102,9 @@ test.describe("Authentification Microservices", () => {
 
   test("Logout revient à l'écran de connexion", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 15000 });
 
     await page.locator("#login-email").fill("e2e-test@example.com");
     await page.locator("#login-password").fill("testpassword123");
@@ -102,7 +116,9 @@ test.describe("Authentification Microservices", () => {
 
     await page.getByRole("button", { name: "Déconnexion" }).click();
 
-    await expect(page.getByText("Connexion")).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("heading", { name: "Connexion", exact: true })
+    ).toBeVisible({ timeout: 10000 });
     await expect(page.locator("#login-email")).toBeVisible();
   });
 });
