@@ -15,6 +15,9 @@ cd refacto
 
 # Install dependencies from package lock
 npm ci
+
+# Install dependencies for each service (microservices + gateway)
+npm run ci:services
 ```
 
 Note: the frontend bundle is built automatically by Docker when you run `docker compose up --build`.
@@ -28,6 +31,8 @@ Note: the frontend bundle is built automatically by Docker when you run `docker 
 All backend services (auth, projects, tasks, notifications), the API Gateway, and the React frontend run via Docker Compose.
 
 From the repo root:
+
+Avant de démarrer les containers, ouvrir Docker Desktop.
 
 ```bash
 docker compose up -d --build
@@ -48,7 +53,7 @@ The Gateway is the single entry point for the frontend:
 - Tasks: `/api/tasks/...`
 - Notifications: `/api/notifications`
 
-### 2. Inscription
+### 2. Inscription et utilisation
 
 1. Ouvrir le navigateur sur **[http://localhost:3000](http://localhost:3000)**.
 2. Sur le formulaire d'inscript, saisir un email et un mot de passe.

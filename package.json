@@ -15,6 +15,7 @@
     "test:services": "cd services/auth-service && npm run test && cd ../project-service && npm run test && cd ../task-service && npm run test && cd ../notification-service && npm run test",
     "lint": "eslint src services/*/src",
     "lint:deps": "npx dependency-cruiser src services/*/src --config",
+    "ci:services": "for d in services/{auth-service,project-service,task-service,notification-service,api-gateway}; do (cd \"$d\" && npm ci); done",
     "build:front": "esbuild src/frontend/app.tsx --bundle --minify --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {
