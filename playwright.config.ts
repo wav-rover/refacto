@@ -41,7 +41,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "docker-compose up --build",
+    command: "docker compose up --build",
     url: "http://localhost:3000",
     reuseExistingServer: true,
     timeout: 120000,
