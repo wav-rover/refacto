@@ -1,1 +1,15 @@
-{"cookies":[{"name":"connect.sid","value":"s%3ANl4GOLr0AvDNwGiSbphyKaMCKcmV_bOk.nTIw4eE0fQKDi5brH15H6Cw%2BXy2spCNOAxo5WhfoagI","domain":"localhost","path":"/","expires":-1,"httpOnly":true,"secure":false,"sameSite":"Lax"}],"origins":[]}
+{
+  "cookies": [
+    {
+      "name": "connect.sid",
+      "value": "s%3AHjKaQEejelqPuBoA7i7vVJE0MNdrWVai.kq9BAqOG1LhzvU6B2kQvscZK96Ei6p7tH2WuMPFgUzY",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
