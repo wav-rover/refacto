@@ -12,10 +12,10 @@ test.describe("Authentification Microservices", () => {
     await expect(page.locator("#login-email")).toBeVisible();
     await expect(page.locator("#login-password")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Se connecter" })
+      page.getByRole("button", { name: "Se connecter" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Créer un compte" })
+      page.getByRole("button", { name: "Créer un compte" }),
     ).toBeVisible();
   });
 
@@ -29,7 +29,7 @@ test.describe("Authentification Microservices", () => {
 
     await expect(page.getByText("Projets")).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByRole("button", { name: "Déconnexion" })
+      page.getByRole("button", { name: "Déconnexion" }),
     ).toBeVisible();
   });
 

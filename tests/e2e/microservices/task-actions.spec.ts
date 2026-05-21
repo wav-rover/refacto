@@ -9,7 +9,9 @@ function formatDate(daysFromNow: number): string {
 test.describe("Actions sur les tâches", () => {
   const projectName = `Projet Actions ${Date.now()}`;
 
-  async function createProjectAndNavigateToTasks(page: import("@playwright/test").Page) {
+  async function createProjectAndNavigateToTasks(
+    page: import("@playwright/test").Page,
+  ) {
     await page.goto("/");
     await expect(page.getByText("Projets")).toBeVisible({ timeout: 15000 });
 
@@ -29,7 +31,7 @@ test.describe("Actions sur les tâches", () => {
     title: string,
     priority = "medium",
     status = "todo",
-    dueDate: string | null = null
+    dueDate: string | null = null,
   ) {
     await page.locator('[name="task-title"]').fill(title);
     await page.locator('[name="task-priority"]').selectOption(priority);
@@ -56,14 +58,20 @@ test.describe("Actions sur les tâches", () => {
 
     const newTitle = `Tâche modifiée ${Date.now()}`;
     await row.locator('input[aria-label="Titre"]').fill(newTitle);
-    await row.locator('select[aria-label="Statut"]').selectOption("in_progress");
+    await row
+      .locator('select[aria-label="Statut"]')
+      .selectOption("in_progress");
     await row.locator('select[aria-label="Priorité"]').selectOption("high");
-    await row.locator('input[aria-label="Date d\'échéance"]').fill(formatDate(14));
+    await row
+      .locator('input[aria-label="Date d\'échéance"]')
+      .fill(formatDate(14));
 
     await row.getByRole("button", { name: "Enregistrer" }).click();
 
     await expect(page.getByText(newTitle)).toBeVisible({ timeout: 5000 });
-    const updatedRow = page.locator("table tbody tr").filter({ hasText: newTitle });
+    const updatedRow = page
+      .locator("table tbody tr")
+      .filter({ hasText: newTitle });
     await expect(updatedRow).toContainText("En cours");
     await expect(updatedRow).toContainText("Haute");
   });
@@ -106,7 +114,9 @@ test.describe("Actions sur les tâches", () => {
 
     await row.getByRole("button", { name: "Désassigner" }).click();
 
-    await expect(row.locator("td").nth(4)).toContainText("—", { timeout: 5000 });
+    await expect(row.locator("td").nth(4)).toContainText("—", {
+      timeout: 5000,
+    });
   });
 
   test("Supprimer une tâche", async ({ page }) => {
@@ -133,7 +143,9 @@ test.describe("Actions sur les tâches", () => {
     const closeProjectName = `Projet à clore ${Date.now()}`;
     await page.locator("#project-name").fill(closeProjectName);
     await page.getByRole("button", { name: "Créer" }).click();
-    await expect(page.getByText(closeProjectName)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(closeProjectName)).toBeVisible({
+      timeout: 10000,
+    });
 
     const projectRow = page.locator("li").filter({ hasText: closeProjectName });
     await expect(projectRow).toContainText("Ouvert");
@@ -143,7 +155,7 @@ test.describe("Actions sur les tâches", () => {
     await expect(projectRow).toContainText("Clos", { timeout: 5000 });
 
     await expect(
-      projectRow.getByRole("button", { name: "Clore" })
+      projectRow.getByRole("button", { name: "Clore" }),
     ).not.toBeVisible();
   });
 });

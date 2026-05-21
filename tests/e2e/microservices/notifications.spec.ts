@@ -9,12 +9,14 @@ test.describe("Notifications", () => {
   test("Afficher la vue notifications", async ({ page }) => {
     await page.getByRole("button", { name: "Notifications" }).click();
 
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 10000,
     });
 
     await expect(
-      page.getByRole("button", { name: /Rafraîchir/i })
+      page.getByRole("button", { name: /Rafraîchir/i }),
     ).toBeVisible();
 
     const hasNotifications = await page.locator("table tbody tr").count();
@@ -32,14 +34,16 @@ test.describe("Notifications", () => {
   test("Rafraîchir les notifications", async ({ page }) => {
     await page.getByRole("button", { name: "Notifications" }).click();
 
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 10000,
     });
 
     await page.getByRole("button", { name: "Rafraîchir" }).click();
 
     await expect(
-      page.getByRole("button", { name: /Rafraîchissement|Rafraîchir/i })
+      page.getByRole("button", { name: /Rafraîchissement|Rafraîchir/i }),
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -65,7 +69,9 @@ test.describe("Notifications", () => {
     await page.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(page.getByText(taskTitle)).toBeVisible({ timeout: 5000 });
 
-    const taskRow = page.locator("table tbody tr").filter({ hasText: taskTitle });
+    const taskRow = page
+      .locator("table tbody tr")
+      .filter({ hasText: taskTitle });
     const testUserId = "test-user-notif";
     await taskRow.locator('input[placeholder="userId"]').fill(testUserId);
     await taskRow.getByRole("button", { name: "Assigner" }).click();
@@ -78,7 +84,9 @@ test.describe("Notifications", () => {
     await expect(page.getByText("Projets")).toBeVisible({ timeout: 5000 });
 
     await page.getByRole("button", { name: "Notifications" }).click();
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 10000,
     });
 
@@ -106,14 +114,18 @@ test.describe("Notifications", () => {
     await page.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(page.getByText(taskTitle)).toBeVisible({ timeout: 5000 });
 
-    const taskRow = page.locator("table tbody tr").filter({ hasText: taskTitle });
+    const taskRow = page
+      .locator("table tbody tr")
+      .filter({ hasText: taskTitle });
     await taskRow.getByRole("button", { name: "Terminer" }).click();
     await expect(taskRow).toContainText("Terminé", { timeout: 5000 });
 
     await page.getByRole("button", { name: "Projets" }).click();
     await page.getByRole("button", { name: "Notifications" }).click();
 
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 10000,
     });
   });
@@ -130,7 +142,9 @@ test.describe("Notifications", () => {
 
     await page.getByRole("button", { name: "Notifications" }).click();
 
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 10000,
     });
 
@@ -142,7 +156,9 @@ test.describe("Notifications", () => {
     await expect(page.getByText("Projets")).toBeVisible();
 
     await page.getByRole("button", { name: "Notifications" }).click();
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "Notifications" }),
+    ).toBeVisible({
       timeout: 5000,
     });
 

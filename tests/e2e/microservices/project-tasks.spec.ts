@@ -57,7 +57,9 @@ test.describe("Projet et Tâches - Flux principal", () => {
     await page.getByRole("button", { name: "Créer" }).click();
 
     await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
-    await expect(page.locator("li").filter({ hasText: projectName })).toContainText("Ouvert");
+    await expect(
+      page.locator("li").filter({ hasText: projectName }),
+    ).toContainText("Ouvert");
   });
 
   test("Créer 5 tâches avec priorités, statuts et échéances variés", async ({
@@ -132,7 +134,9 @@ test.describe("Projet et Tâches - Flux principal", () => {
     ];
 
     for (const verif of taskVerifications) {
-      const row = page.locator("table tbody tr").filter({ hasText: verif.title });
+      const row = page
+        .locator("table tbody tr")
+        .filter({ hasText: verif.title });
       await expect(row).toBeVisible();
       await expect(row).toContainText(verif.status);
       await expect(row).toContainText(verif.priority);
