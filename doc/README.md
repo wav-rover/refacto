@@ -10,6 +10,7 @@ Index de la documentation technique et du plan de refonte.
   - [ADR 001 – Stratégie de refactorisation](./adr/adr-001-strategie-refactorisation-todo.md)
   - [ADR 002 – API Gateway vs BFF](./adr/adr-002-api-gateway-vs-bff.md)
   - [ADR 003 – Broker Redis vs RabbitMQ](./adr/adr-003-broker-redis-vs-rabbitmq.md)
+  - [ADR 004 – npm workspaces vs pnpm](./adr/adr-004-npm-vs-pnpm.md)
 
 ---
 
