@@ -36,6 +36,7 @@
 ### Reproductibilité des images (décisions liées)
 - **`npm ci`** dans tous les Dockerfiles (au lieu de `npm install`) : respect strict du lockfile.
 - **Alignement Node 24** : les Dockerfiles passent de `node:20-alpine` à `node:24-alpine`, cohérent avec `.nvmrc` (`24.13.1`) et la version testée en CI. On évite de tester sur une version et de livrer sur une autre.
+- **Contexte de build racine** : avec le lockfile unique décidé en **[ADR 006](./adr-006-npm-vs-pnpm.md)**, le build d'image se fait en contexte racine (`context: .`) — chaque Dockerfile copie le `package-lock.json` racine + les `package.json` du workspace avant `npm ci`. C'est la condition pour que `npm ci` fonctionne sans lockfile par service.
 
 ## Conséquences
 

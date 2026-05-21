@@ -12,6 +12,13 @@ Index de la documentation technique et du plan de refonte.
   - [ADR 003 – Broker Redis vs RabbitMQ](./adr/adr-003-broker-redis-vs-rabbitmq.md)
   - [ADR 004 – Stratégie d'intégration continue (CI)](./adr/adr-004-strategie-integration-continue.md)
   - [ADR 005 – Livraison des images Docker et registry (CD)](./adr/adr-005-livraison-docker-registry.md)
+  - [ADR 006 – Stratégie workspaces : npm workspaces vs pnpm](./adr/adr-006-npm-vs-pnpm.md)
+
+---
+
+## Intégration & déploiement continus (CI/CD)
+
+- [Vue d'ensemble CI/CD](./ci/vue-ensemble-ci.md) — les 4 pipelines (quand ils se lancent, ce qui s'enchaîne), liés aux cartes Trello et aux ADR 004/005/006.
 
 ---
 

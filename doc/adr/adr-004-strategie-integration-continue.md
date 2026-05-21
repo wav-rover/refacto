@@ -76,6 +76,6 @@ Réalisée avec **`dorny/paths-filter` + matrix GitHub Actions** plutôt qu'un `
 
 ## Actions de suivi
 - **Aligner les versions Node** : la CI teste sur `24.13.1` (`.nvmrc`) alors que les services tournent sur `node:20-alpine`. À harmoniser (voir ADR 005).
-- **Trancher la stratégie de monorepo** (carte « stratégie de workspace ») : passer en **npm workspaces** (un seul lockfile, install/cache unique) simplifierait nettement la CI incrémentale. Décision liée à acter avant l'implémentation de `ci.yml`.
+- **Workspaces mono-repo** : implémenter la décision **[ADR 006](./adr-006-npm-vs-pnpm.md)** (npm workspaces, lockfile unique) avant `ci.yml`.
 - Définir l'instance SonarQube (self-hosted vs SonarCloud) et le seuil de qualité (quality gate).
 - Implémenter les workflows (`ci.yml`, `main-quality.yml`, `nightly.yml`).
