@@ -37,12 +37,13 @@ On retient **l'option C**, structurée par le principe **fail-fast** : chaque co
    - `npm ci` + `ci:services` → **tous** les tests unitaires + **Playwright E2E**.
    - **CodeQL** (JS/TS) → upload SARIF dans GitHub Security.
    - **SonarQube/SonarCloud** (qualité + couverture agrégée).
+   - **license-checker** sur le monorepo (bloquant si licence hors liste blanche).
    - `npm audit --audit-level=high` (bloquant).
    - Upload des rapports (couverture, Playwright).
 
 3. **`nightly.yml` — CI lourde** *(cron nocturne)*
    - `ci:services` + `test:all` (services + E2E complet, environnement Redis up).
-   - Scans complets (Trivy full, `npm audit` complet).
+   - Scans complets (Trivy full, `npm audit` complet, license-checker sur tout le monorepo).
    - Upload des rapports Playwright + logs.
 
 > La publication des images Docker (build, scan, push) fait l'objet d'un workflow et d'une décision séparés : voir **[ADR 005](./adr-005-livraison-docker-registry.md)**.
@@ -59,6 +60,7 @@ Réalisée avec **`dorny/paths-filter` + matrix GitHub Actions** plutôt qu'un `
 | E2E Playwright | — | ✅ | ✅ |
 | CodeQL / Sonar | — | ✅ | — |
 | Hadolint | ciblé | — | — |
+| license-checker | — | bloquant | complet |
 | npm audit | informatif | bloquant (`high`) | complet |
 
 ## Conséquences
@@ -78,4 +80,5 @@ Réalisée avec **`dorny/paths-filter` + matrix GitHub Actions** plutôt qu'un `
 - **Aligner les versions Node** : la CI teste sur `24.13.1` (`.nvmrc`) alors que les services tournent sur `node:20-alpine`. À harmoniser (voir ADR 005).
 - **Workspaces mono-repo** : implémenter la décision **[ADR 006](./adr-006-npm-vs-pnpm.md)** (npm workspaces, lockfile unique) avant `ci.yml`.
 - Définir l'instance SonarQube (self-hosted vs SonarCloud) et le seuil de qualité (quality gate).
+- Définir la **liste blanche de licences** acceptées pour license-checker (ex. MIT, Apache-2.0, ISC, BSD) et le script npm associé.
 - Implémenter les workflows (`ci.yml`, `main-quality.yml`, `nightly.yml`).

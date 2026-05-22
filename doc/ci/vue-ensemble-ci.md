@@ -52,8 +52,9 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 3. **Tests end-to-end** (Playwright).
 4. **Analyse de sécurité du code** (CodeQL) → résultats remontés dans GitHub Security.
 5. **Analyse qualité & couverture** (SonarQube / SonarCloud).
-6. **Audit de sécurité des dépendances** — bloquant à partir d'une sévérité élevée.
-7. **Publication des rapports** (couverture, E2E, sécurité).
+6. **Vérification des licences** des dépendances (license-checker) — bloquant si une licence non autorisée est détectée (liste blanche à définir, ex. MIT, Apache-2.0, ISC, BSD).
+7. **Audit de sécurité des dépendances** (`npm audit`) — bloquant à partir d'une sévérité élevée.
+8. **Publication des rapports** (couverture, E2E, sécurité, licences).
 
 ---
 
@@ -66,7 +67,7 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 **Ce qui se lance, dans l'ordre :**
 1. Récupération du code.
 2. Préparation de l'outil de build d'images (Buildx).
-3. **Construction des images** des services concernés (architecture **amd64**).
+3. **Construction multi-architecture** des images des services concernés (**`linux/amd64` + `linux/arm64`**, Buildx + manifeste unique par tag).
 4. **Scan de sécurité des images** (Trivy) — bloque en cas de vulnérabilité haute/critique.
 5. **Connexion à la registry** (GHCR) et **publication** des images.
 6. **Étiquetage** des images (`latest`, identifiant de commit, version sur release).
@@ -84,7 +85,7 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 1. Récupération du code et installation complète.
 2. **Démarrage de l'environnement de test complet** (services + dépendances, ex. Redis).
 3. **Suite de tests complète** (unitaires + end-to-end de bout en bout).
-4. **Scans de sécurité approfondis** (images et dépendances).
+4. **Scans de sécurité approfondis** (images Trivy, `npm audit` complet, **license-checker** sur l'ensemble du monorepo).
 5. Publication des rapports (Playwright, logs, scans).
 
 ---
@@ -99,11 +100,9 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | 38 | Hadolint (lint Dockerfiles) | #1 |
 | 39 | CodeQL + SonarQube | #2 |
 | 40 | Trivy (scan images) | #3 (bloquant), #4 (approfondi) |
-| 41 | npm audit + `docker compose config` | #1 (audit informatif, validation compose), #2 (audit bloquant) |
+| 41 | npm audit + `docker compose config` | #1 (audit informatif, validation compose), #2 (audit bloquant), #4 (audit complet) |
+| — | license-checker (licences des dépendances) | #2 (bloquant), #4 (contrôle approfondi) |
 | 42 | Traçabilité des résultats (GitHub Security, artefacts) | #2 (et #4 pour les rapports) |
 | 43 | Registry privée des images | #3 |
 
-## État Trello vs réalité
 
-- **Carte 36 (build multi-architecture)** : ramenée à **amd64 uniquement** par décision de l'**[ADR 005](../adr/adr-005-livraison-docker-registry.md)** (le multi-arch pourra être réactivé plus tard si un besoin ARM apparaît).
-- **Carte 48 (« RE valider le contenu des CI »)** : ce document **est** cette validation — il fige le périmètre et l'ordonnancement des 4 pipelines.

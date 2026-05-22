@@ -15,19 +15,20 @@
 | **Gestion des secrets** | Aucune (token fourni par Actions). | Secrets à créer et maintenir. |
 
 ### Plateforme(s) de build
-- **amd64 seul** : build rapide, suffisant pour le déploiement et la correction du projet.
-- **amd64 + arm64** : multi-arch, mais double le temps de build (émulation QEMU pour arm64).
+- **amd64 seul** : build rapide, suffisant si la cible de déploiement est uniquement x86_64.
+- **amd64 + arm64** *(retenu)* : images **multi-architecture** via Buildx (`linux/amd64`, `linux/arm64`), aligné sur le cahier des charges du projet pédagogique ; temps de build plus long (émulation QEMU pour `arm64` sur les runners GitHub `amd64`).
 
 ## Décision
 
 - **Registry : GHCR** (`ghcr.io/<owner>/<service>`), authentification via `GITHUB_TOKEN`. Zéro secret externe à gérer, droits alignés sur le repo.
-- **Plateforme : `linux/amd64` uniquement**. Buildx est conservé (cache, build avancé) mais sur une seule plateforme ; le multi-arch pourra être ajouté plus tard si un besoin de déploiement ARM apparaît.
+- **Plateformes : multi-architecture `linux/amd64` + `linux/arm64`**. Buildx construit et pousse un **manifeste multi-plateforme** par image : un seul tag (`latest`, `sha`, version) résout automatiquement vers la bonne architecture au `docker pull`.
 
 ### Workflow de publication
 
 **`publish.yml` — Publication Docker** *(sur `main`, après le workflow Qualité & sécurité vert)*
 - Déclenché via `workflow_run` (succès de `main-quality.yml`) : **on ne publie jamais une image non validée**.
-- `docker/setup-buildx-action` → build `linux/amd64` des services concernés.
+- `docker/setup-qemu-action` (émulation `arm64` sur runner `amd64`) + `docker/setup-buildx-action`.
+- Build et push **multi-arch** (`platforms: linux/amd64,linux/arm64`) des services concernés via `docker/build-push-action`.
 - **Trivy** scanne chaque image et **échoue sur HIGH/CRITICAL**.
 - Push vers **GHCR**.
 - Tags : `latest`, `sha` court, et tag de version sur release.
@@ -44,15 +45,16 @@
 - Publication automatique, tracée et sécurisée (scan bloquant) uniquement d'images déjà validées.
 - Aucun secret de registry à gérer (GHCR + `GITHUB_TOKEN`).
 - Images reproductibles (lockfile respecté, version Node unique du test à la prod).
-- Builds rapides (mono-plateforme + cache GHA).
+- Images utilisables sur serveurs **amd64** et environnements **ARM** (Apple Silicon, Raspberry Pi, cloud ARM) sans tag distinct par architecture.
+- Cache GHA des layers Buildx.
 
 ### Négatives
-- Pas de portabilité ARM tant que le multi-arch n'est pas activé.
+- Temps de build et de publication **plus longs** (deux plateformes, émulation QEMU pour `arm64`).
 - Le scan Trivy bloquant peut casser une publication sur une CVE d'image de base → nécessite une politique de mise à jour des images de base.
 - Dépendance au cycle de vie GHCR (lié au repo GitHub).
 
 ## Actions de suivi
 - Adapter tous les `Dockerfile` des services : `node:24-alpine` + `npm ci`.
-- Implémenter `publish.yml` (Buildx amd64, Trivy, push GHCR, tags).
+- Implémenter `publish.yml` (Buildx multi-arch `amd64` + `arm64`, Trivy, push GHCR, tags).
 - Définir la politique de tags de version (ex. SemVer sur release Git).
 - Définir la conduite à tenir en cas de CVE bloquante sur une image de base (mise à jour, exception documentée).
