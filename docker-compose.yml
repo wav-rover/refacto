@@ -17,8 +17,8 @@ services:
 
   project-service:
     build:
-      context: ./services/project-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/project-service/Dockerfile
     environment:
       - PORT=3001
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -29,8 +29,8 @@ services:
 
   task-service:
     build:
-      context: ./services/task-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/task-service/Dockerfile
     environment:
       - PORT=3002
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -42,8 +42,8 @@ services:
 
   notification-service:
     build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/notification-service/Dockerfile
     environment:
       - PORT=3003
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -55,8 +55,8 @@ services:
 
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     environment:
       - PORT=3004
       - SESSION_SECRET=${SESSION_SECRET:-dev-secret}
@@ -68,8 +68,8 @@ services:
 
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:3004

@@ -2,20 +2,33 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+COPY services/api-gateway/package.json services/api-gateway/
+COPY services/auth-service/package.json services/auth-service/
+COPY services/notification-service/package.json services/notification-service/
+COPY services/project-service/package.json services/project-service/
+COPY services/task-service/package.json services/task-service/
 
-COPY . .
-RUN npm run build
+RUN npm ci --workspace=project-service --include-workspace-root=false
+
+COPY services/project-service ./services/project-service
+
+RUN npm run build -w project-service
 
 FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+COPY services/api-gateway/package.json services/api-gateway/
+COPY services/auth-service/package.json services/auth-service/
+COPY services/notification-service/package.json services/notification-service/
+COPY services/project-service/package.json services/project-service/
+COPY services/task-service/package.json services/task-service/
 
-COPY --from=builder /app/dist ./dist
+RUN npm ci --workspace=project-service --include-workspace-root=false --omit=dev
+
+COPY --from=builder /app/services/project-service/dist ./dist
 
 RUN mkdir -p /app/data
 ENV PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db

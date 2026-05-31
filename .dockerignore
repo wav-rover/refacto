@@ -1,2 +1,11 @@
 node_modules
-Dockerfile
+**/node_modules
+**/dist
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+*.md
+playwright-report
+test-results
