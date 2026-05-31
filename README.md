@@ -13,11 +13,8 @@ Sample Todo application — refactoring project with tests, TypeScript, and clea
 git clone https://github.com/wav-rover/refacto.git
 cd refacto
 
-# Install dependencies from package lock
+# Install all dependencies (legacy app + services workspaces)
 npm ci
-
-# Install dependencies for each service (microservices + gateway)
-npm run ci:services
 ```
 
 Note: the frontend bundle is built automatically by Docker when you run `docker compose up --build`.

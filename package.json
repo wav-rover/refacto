@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "workspaces": [
+    "services/*"
+  ],
   "engines": {
     "node": ">=24.13.1"
   },
@@ -12,10 +15,9 @@
     "test": "npm run test:services",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
-    "test:services": "cd services/auth-service && npm run test && cd ../project-service && npm run test && cd ../task-service && npm run test && cd ../notification-service && npm run test",
+    "test:services": "npm run test --workspaces --if-present",
     "lint": "eslint src services/*/src",
     "lint:deps": "npx dependency-cruiser src services/*/src --config",
-    "ci:services": "node scripts/ci-services.mjs",
     "build:front": "esbuild src/frontend/app.tsx --bundle --minify --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
   },
   "dependencies": {
