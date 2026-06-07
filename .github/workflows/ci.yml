@@ -1,0 +1,205 @@
+name: CI
+
+# CI incrémentale (ADR 004, pipeline #1) : ne teste que ce qui change → feedback rapide.
+# Déclencheurs : push sur toutes branches SAUF main, + PR ciblant main.
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Annule les runs obsolètes sur la même branche/PR lors d'un nouveau push.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissions minimales : lecture seule du contenu.
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1 — detect : quels services sont touchés + flags front/global.
+  # paths-filter diffe via git LOCAL sur les push (contre github.event.before
+  # -> nécessite un checkout) et via l'API GitHub sur les PR ('pull-requests:
+  # read', scopé à ce seul job).
+  # ---------------------------------------------------------------------------
+  detect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      services: ${{ steps.set.outputs.services }}
+      front: ${{ steps.filter.outputs.front }}
+      global: ${{ steps.filter.outputs.global }}
+      # Au moins un Dockerfile modifié ? (booléen fiable pour gater le job hadolint)
+      has_dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
+      # Liste JSON des Dockerfiles RÉELLEMENT modifiés (matrice hadolint ciblée).
+      dockerfiles: ${{ steps.filter.outputs.dockerfiles_files }}
+    steps:
+      # Requis pour les events 'push' : paths-filter compare via git local.
+      # Inutile pour les PR (détection via API) mais sans effet de bord.
+      - uses: actions/checkout@v4
+      - name: Filtre des chemins
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # list-files: json -> chaque filtre expose aussi '<filtre>_files'
+          # (tableau JSON des fichiers matchés) ; sert à cibler Hadolint.
+          list-files: json
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+            project-service:
+              - 'services/project-service/**'
+            task-service:
+              - 'services/task-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            api-gateway:
+              - 'services/api-gateway/**'
+            front:
+              - 'src/frontend/**'
+              - 'src/static/**'
+              - 'Dockerfile.frontend'
+              - 'tsconfig.frontend.json'
+              - 'tsconfig.client.json'
+            global:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+              - 'eslint.config.mjs'
+              - '.dependency-cruiser.js'
+              - '.github/workflows/ci.yml'
+              - '.nvmrc'
+            # Sert UNIQUEMENT à cibler Hadolint sur les Dockerfiles modifiés
+            # (via la sortie dockerfiles_files). Exclu de la matrice services.
+            dockerfiles:
+              - 'Dockerfile.frontend'
+              - 'services/*/Dockerfile'
+
+      # Construit le tableau JSON des services à tester :
+      #  - si 'global' a changé  -> TOUS les services (full build, garde-fou ADR 004) ;
+      #  - sinon -> filtres matchés (steps.filter.outputs.changes) moins les filtres
+      #    NON-services : 'front', 'global', 'dockerfiles'.
+      - name: Calcul de la matrice services
+        id: set
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes }}
+          GLOBAL: ${{ steps.filter.outputs.global }}
+        run: |
+          ALL='["auth-service","project-service","task-service","notification-service","api-gateway"]'
+          if [ "$GLOBAL" = "true" ]; then
+            SERVICES="$ALL"
+          else
+            SERVICES=$(echo "$CHANGES" | jq -c '[ .[] | select(. != "front" and . != "global" and . != "dockerfiles") ]')
+          fi
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+          echo "Services à tester : $SERVICES"
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — services : matrix, lint + tests Jest CIBLÉS sur les services touchés.
+  # Skippé si aucun service à tester (front-only ou aucun match).
+  # ---------------------------------------------------------------------------
+  services:
+    needs: detect
+    if: needs.detect.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Lockfile unique racine : npm ci installe tous les workspaces en une fois.
+      - name: Install
+        run: npm ci
+      # Lint CIBLÉ du seul service (pas le lint global 'npm run lint').
+      - name: Lint ${{ matrix.service }}
+        run: npx eslint services/${{ matrix.service }}/src
+      # Tests Jest CIBLÉS + couverture (-w cible le workspace ; --coverage -> jest).
+      - name: Test ${{ matrix.service }}
+        run: npm run test -w services/${{ matrix.service }} -- --coverage
+      # Couverture en artefact par service (api-gateway peut n'avoir aucun test).
+      - name: Upload couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Job 3 — front : build du frontend, uniquement si le front (ou un global) change.
+  # ---------------------------------------------------------------------------
+  front:
+    needs: detect
+    if: needs.detect.outputs.front == 'true' || needs.detect.outputs.global == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build frontend
+        run: npm run build:front
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — quality : vérifs transverses (globales par nature → tournent toujours).
+  # ---------------------------------------------------------------------------
+  quality:
+    needs: detect
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      # Analyse des dépendances sur tout le repo (dependency-cruiser).
+      # (Hadolint est traité dans le job 'hadolint' dédié, ciblé sur les
+      #  Dockerfiles réellement modifiés.)
+      - name: Lint des dépendances
+        run: npm run lint:deps
+      # Validation de la config docker compose (syntaxe + interpolation).
+      - name: Validation docker compose
+        if: always()
+        run: docker compose -f docker-compose.yml config -q
+      # Audit des dépendances en mode INFORMATIF : ne bloque PAS le workflow
+      # (l'audit bloquant 'high' est le pipeline 2 — ADR 004).
+      - name: npm audit (informatif)
+        if: always()
+        continue-on-error: true
+        run: npm audit --omit=dev
+
+  # ---------------------------------------------------------------------------
+  # Job 5 — hadolint : lint des Dockerfiles RÉELLEMENT MODIFIÉS (matrice ciblée).
+  # Skippé si aucun Dockerfile n'a changé. Une entrée de matrice par fichier
+  # (annotations par Dockerfile dans l'UI), via hadolint/hadolint-action.
+  # ---------------------------------------------------------------------------
+  hadolint:
+    needs: detect
+    if: needs.detect.outputs.has_dockerfiles == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile: ${{ fromJSON(needs.detect.outputs.dockerfiles) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hadolint ${{ matrix.dockerfile }}
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
