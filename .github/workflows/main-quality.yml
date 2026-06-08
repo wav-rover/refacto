@@ -1,0 +1,155 @@
+name: Main quality & security
+
+# Pipeline #2 (ADR 004) — validation EXHAUSTIVE au merge sur main :
+# tous les tests + E2E + analyses de sécurité. Le coûteux n'est payé qu'ici.
+# (Le lint/tests ciblés des branches/PR est géré par ci.yml — pipeline #1.)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Annule un run main obsolète si un nouveau merge arrive.
+concurrency:
+  group: main-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissions minimales ; le job codeql élève les siennes.
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Job 1 — unit-tests : TOUS les services + couverture lcov -> artefact 'coverage'.
+  # -------------------------------------------------------------------------
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      # Tous les workspaces avec couverture (lcov = défaut Jest ->
+      # services/<svc>/coverage/lcov.info).
+      - name: Tests unitaires (tous services) + couverture
+        run: npm run test --workspaces --if-present -- --coverage
+      # Round-trip vers le job sonarcloud. La racine d'artefact est 'services/'
+      # (ancêtre commun des fichiers) -> on re-télécharge dans 'services'.
+      - name: Upload couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: services/*/coverage/lcov.info
+          if-no-files-found: warn
+
+  # -------------------------------------------------------------------------
+  # Job 2 — e2e : Playwright sur la stack complète (docker compose). Parallèle.
+  # -------------------------------------------------------------------------
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      # Pré-build des images pour que le démarrage du webServer Playwright
+      # (docker compose up --build, timeout 120 s) ne build pas à froid.
+      - name: Pre-build de la stack Docker
+        run: docker compose build
+      - name: Tests E2E (Playwright)
+        run: npm run test:e2e
+      - name: Upload rapport Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------------
+  # Job 3 — codeql : analyse sécurité statique JS/TS -> onglet Security.
+  # -------------------------------------------------------------------------
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      # Pas de build custom pour du JS/TS.
+      - name: Analyse CodeQL
+        uses: github/codeql-action/analyze@v3
+
+  # -------------------------------------------------------------------------
+  # Job 4 — sonarcloud : qualité + couverture agrégée (config = sonar-project.properties).
+  # -------------------------------------------------------------------------
+  sonarcloud:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Sonar exige l'historique complet (blame / new code).
+      # Restaure services/<svc>/coverage/lcov.info (artefact de racine 'services/').
+      - name: Download couverture
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: services
+      - name: Analyse SonarCloud
+        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+
+  # -------------------------------------------------------------------------
+  # Job 5 — license-check : licences des deps de PROD (BLOQUANT).
+  # -------------------------------------------------------------------------
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      # Échoue si une licence sort de la liste blanche (pas de continue-on-error).
+      # Whitelist dérivée des licences RÉELLEMENT présentes en prod (toutes
+      # permissives). --onlyAllow fait du match EXACT : les expressions SPDX
+      # composées et 'MIT*' doivent être listées telles quelles. Un futur bump
+      # amenant une nouvelle licence fera échouer ce gate -> à maintenir.
+      - name: Vérification des licences (bloquant)
+        run: npx --yes license-checker --production --summary --onlyAllow "MIT;MIT*;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;BlueOak-1.0.0;Unlicense;(MIT OR WTFPL);(BSD-2-Clause OR MIT OR Apache-2.0)"
+
+  # -------------------------------------------------------------------------
+  # Job 6 — audit : npm audit STRICT (BLOQUANT ; version informative = ci.yml).
+  # -------------------------------------------------------------------------
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: npm audit (bloquant, high)
+        run: npm audit --audit-level=high

@@ -4,6 +4,10 @@ dist/
 **/dist/
 /services/*/dist/
 
+# Couverture de tests (générée par jest --coverage, jamais versionnée)
+coverage/
+**/coverage/
+
 # Playwright
 node_modules/
 /test-results/
