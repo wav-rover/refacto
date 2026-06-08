@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  packages: write        # push vers GHCR
+  packages: write # push vers GHCR
   security-events: write # upload du SARIF Trivy dans l'onglet Security
 
 jobs:
@@ -95,17 +95,33 @@ jobs:
           cache-to: type=gha,mode=max
 
       # 7. Scan Trivy BLOQUANT — HIGH/CRITICAL font échouer le job AVANT tout push.
-      #    ignore-unfixed:true : ignore les CVE sans correctif disponible (images de base).
+      #    scanners:vuln uniquement (pas secret : faux positifs sur node_modules volumineux).
+      #    format:table pour afficher les CVE dans les logs CI.
       - name: Scan Trivy (bloquant)
-        # 0.24.0 n'existe pas sur trivy-action ; SHA = release v0.35.0 (épinglage post-incident mars 2026).
+        # SHA = release v0.35.0 (épinglage post-incident mars 2026).
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: refacto-scan:${{ matrix.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      # 7b. Rapport SARIF (non bloquant) pour l'onglet Security — même si l'étape 7 échoue.
+      - name: Scan Trivy (SARIF)
+        if: always()
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           image-ref: refacto-scan:${{ matrix.image }}
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
-          exit-code: 1
+          exit-code: 0
           ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
 
       # 8. Rapport SARIF → onglet Security (même en cas d'échec Trivy).
       - name: Upload SARIF (Security)

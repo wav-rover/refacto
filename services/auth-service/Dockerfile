@@ -34,6 +34,10 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && npm ci --workspace=auth-service --include-workspace-root=false --omit=dev \
     && apk del .build-deps
 
+# Durcissement runtime (ADR 005) : correctifs OS + retrait du CLI npm (CVE glob/tar embarquées).
+RUN apk upgrade --no-cache \
+    && npm r -g npm
+
 COPY --from=builder /app/services/auth-service/dist ./dist
 
 RUN mkdir -p /app/data
