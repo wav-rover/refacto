@@ -97,7 +97,8 @@ jobs:
       # 7. Scan Trivy BLOQUANT — HIGH/CRITICAL font échouer le job AVANT tout push.
       #    ignore-unfixed:true : ignore les CVE sans correctif disponible (images de base).
       - name: Scan Trivy (bloquant)
-        uses: aquasecurity/trivy-action@0.24.0
+        # 0.24.0 n'existe pas sur trivy-action ; SHA = release v0.35.0 (épinglage post-incident mars 2026).
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           image-ref: refacto-scan:${{ matrix.image }}
           format: sarif
