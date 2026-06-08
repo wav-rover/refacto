@@ -9,7 +9,11 @@ COPY services/notification-service/package.json services/notification-service/
 COPY services/project-service/package.json services/project-service/
 COPY services/task-service/package.json services/task-service/
 
-RUN npm ci --workspace=task-service --include-workspace-root=false
+# sqlite3 n'a pas de prebuilt musl/node24 -> compilation via node-gyp,
+# qui exige python3 + toolchain. Installées en virtuel puis retirées.
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --workspace=task-service --include-workspace-root=false \
+    && apk del .build-deps
 
 COPY services/task-service ./services/task-service
 
@@ -26,7 +30,9 @@ COPY services/notification-service/package.json services/notification-service/
 COPY services/project-service/package.json services/project-service/
 COPY services/task-service/package.json services/task-service/
 
-RUN npm ci --workspace=task-service --include-workspace-root=false --omit=dev
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --workspace=task-service --include-workspace-root=false --omit=dev \
+    && apk del .build-deps
 
 COPY --from=builder /app/services/task-service/dist ./dist
 
