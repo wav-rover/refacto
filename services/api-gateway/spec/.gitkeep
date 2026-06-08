@@ -1,0 +1,3 @@
+# Dossier des tests Jest de l'api-gateway (référencé par roots dans jest.config.ts).
+# Placeholder : tant qu'aucun *.spec.ts n'existe, `jest --passWithNoTests` passe.
+# Ce fichier garde le dossier versionné pour que la config Jest ne casse pas en CI.
