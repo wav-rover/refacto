@@ -10,6 +10,9 @@ RUN npm run build:front
 
 FROM nginx:1.27-alpine
 
+# Correctifs OS Alpine (CVE HIGH Trivy sur l'image nginx de base).
+RUN apk upgrade --no-cache
+
 COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY src/static /usr/share/nginx/html
 COPY --from=builder /app/src/static/js/app.js /usr/share/nginx/html/js/app.js

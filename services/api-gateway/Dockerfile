@@ -28,6 +28,10 @@ COPY services/task-service/package.json services/task-service/
 
 RUN npm ci --workspace=api-gateway --include-workspace-root=false --omit=dev
 
+# Durcissement runtime (ADR 005) : correctifs OS + retrait du CLI npm (CVE glob/tar embarquées).
+RUN apk upgrade --no-cache \
+    && npm r -g npm
+
 COPY --from=builder /app/services/api-gateway/dist ./dist
 
 EXPOSE 3000

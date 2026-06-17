@@ -1,0 +1,180 @@
+name: Publication Docker
+
+# Pipeline #3 (ADR 005) — livraison Docker sur GHCR.
+# Déclenché UNIQUEMENT après succès de « Main quality & security » sur main :
+# on ne publie JAMAIS une image non validée (scan Trivy bloquant AVANT tout push).
+on:
+  workflow_run:
+    workflows: ["Main quality & security"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write # push vers GHCR
+  security-events: write # upload du SARIF Trivy dans l'onglet Security
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Publication matrixée des 6 images buildables (Redis = image externe, exclu).
+  # Stratégie scan-avant-push : build amd64 local → Trivy → build+push multi-arch.
+  # -------------------------------------------------------------------------
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    # Multi-arch + push GHCR : jusqu'à ~20 min/image ; retries possibles sur 502 transitoire.
+    timeout-minutes: 120
+    # Piège workflow_run : github.sha pointe le HEAD de main, pas le commit validé.
+    # metadata-action (type=sha) lit GITHUB_SHA → on force le head_sha de la CI #2.
+    env:
+      GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+    strategy:
+      fail-fast: false
+      # Limite les push simultanés vers GHCR (réduit les 502 Bad Gateway).
+      max-parallel: 3
+      matrix:
+        include:
+          - image: auth-service
+            dockerfile: services/auth-service/Dockerfile
+          - image: project-service
+            dockerfile: services/project-service/Dockerfile
+          - image: task-service
+            dockerfile: services/task-service/Dockerfile
+          - image: notification-service
+            dockerfile: services/notification-service/Dockerfile
+          - image: api-gateway
+            dockerfile: services/api-gateway/Dockerfile
+          - image: frontend
+            dockerfile: Dockerfile.frontend
+
+    steps:
+      # 1. Checkout du SHA validé par la CI qualité/sécurité (pas le HEAD courant).
+      - name: Checkout (SHA validé)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # 2. QEMU : émulation linux/arm64 sur les runners GitHub (amd64 natif).
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 3. Buildx : builder multi-plateforme (manifeste amd64 + arm64).
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Authentification GHCR via GITHUB_TOKEN (zéro secret externe — ADR 005).
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5. Tags d'image : latest + SHA court du commit validé.
+      #    type=semver : inactif sur ce flux main (aucun tag Git semver) ;
+      #    s'activera si un futur trigger release est ajouté au workflow.
+      - name: Métadonnées / tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/wav-rover/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=semver,pattern={{version}}
+
+      # 6. Build amd64 LOCAL pour scan Trivy (load:true, push:false).
+      #    Un manifeste multi-arch n'est PAS chargeable dans le démon Docker local ;
+      #    on construit donc une image amd64 dédiée que Trivy peut inspecter.
+      - name: Build amd64 (scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: refacto-scan:${{ matrix.image }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      # 7. Scan Trivy BLOQUANT — HIGH/CRITICAL font échouer le job AVANT tout push.
+      #    scanners:vuln uniquement (pas secret : faux positifs sur node_modules volumineux).
+      #    format:table pour afficher les CVE dans les logs CI.
+      - name: Scan Trivy (bloquant)
+        # SHA = release v0.35.0 (épinglage post-incident mars 2026).
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: refacto-scan:${{ matrix.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      # 7b. Rapport SARIF (non bloquant) pour l'onglet Security — même si l'étape 7 échoue.
+      - name: Scan Trivy (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: refacto-scan:${{ matrix.image }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      # 8. Rapport SARIF → onglet Security (même en cas d'échec Trivy).
+      - name: Upload SARIF (Security)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.image }}
+
+      # 9. Artefact SARIF par image (traçabilité / téléchargement manuel).
+      - name: Upload artefact Trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.image }}
+          path: trivy-results.sarif
+          if-no-files-found: ignore
+
+      # 10. Build + push multi-arch — UNIQUEMENT si le scan Trivy a réussi.
+      #     Le cache GHA rend le re-build amd64 quasi gratuit ; seul arm64 (QEMU) coûte.
+      #     provenance/sbom:false = moins de blobs à pousser (moins de risque 502 sur GHCR).
+      #     continue-on-error + retry : les 502 GHCR sont transitoires (côté GitHub).
+      - name: Build + push multi-arch
+        id: push
+        continue-on-error: true
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Build + push multi-arch (retry GHCR)
+        if: steps.push.outcome == 'failure'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

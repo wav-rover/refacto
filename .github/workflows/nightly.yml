@@ -1,0 +1,216 @@
+name: Nightly CI
+
+# Pipeline #4 (ADR 004) — CI lourde nocturne :
+# suite complète de tests (unitaires + E2E stack Redis) + scans approfondis INFORMATIFS.
+# Les tests sont bloquants ; les scans publient des rapports sans faire échouer le workflow.
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 UTC
+  workflow_dispatch:
+
+# Ne pas interrompre un run nocturne en cours.
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Tests unitaires (tous services) + couverture
+        run: npm run test --workspaces --if-present -- --coverage
+      - name: Upload couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-coverage
+          path: services/*/coverage/lcov.info
+          retention-days: 30
+          if-no-files-found: warn
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Pre-build de la stack Docker
+        run: docker compose build
+      - name: Démarrage de l'environnement complet (services + Redis)
+        run: docker compose up -d
+      - name: Attente santé frontend
+        run: npx wait-port 3000
+      - name: Attente santé Redis
+        run: npx wait-port 6379
+      - name: Tests E2E (Playwright)
+        run: npm run test:e2e
+      - name: Capture logs Docker Compose
+        if: always()
+        run: docker compose logs > compose-logs.txt
+      - name: Arrêt de la stack Docker
+        if: always()
+        run: docker compose down -v
+      - name: Upload rapport Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-playwright-report
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Upload logs Docker Compose
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-compose-logs
+          path: compose-logs.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: npm audit JSON (informatif)
+        continue-on-error: true
+        run: npm audit --json > npm-audit-report.json || true
+      - name: npm audit (logs lisibles)
+        continue-on-error: true
+        run: npm audit
+      - name: Upload rapport npm audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-npm-audit
+          path: npm-audit-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Vérification des licences (informatif, monorepo complet)
+        continue-on-error: true
+        run: |
+          npx --yes license-checker --summary --onlyAllow "MIT;MIT*;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;BlueOak-1.0.0;Unlicense;(MIT OR WTFPL);(BSD-2-Clause OR MIT OR Apache-2.0)" \
+            | tee license-check-report.txt
+      - name: Upload rapport licences
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-license-check
+          path: license-check-report.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+  trivy-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - image: auth-service
+            dockerfile: services/auth-service/Dockerfile
+          - image: project-service
+            dockerfile: services/project-service/Dockerfile
+          - image: task-service
+            dockerfile: services/task-service/Dockerfile
+          - image: notification-service
+            dockerfile: services/notification-service/Dockerfile
+          - image: api-gateway
+            dockerfile: services/api-gateway/Dockerfile
+          - image: frontend
+            dockerfile: Dockerfile.frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build amd64 (scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: refacto-nightly-scan:${{ matrix.image }}
+          cache-from: type=gha,scope=nightly-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=nightly-${{ matrix.image }}
+
+      - name: Scan Trivy (table, informatif)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: refacto-nightly-scan:${{ matrix.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      - name: Scan Trivy (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: refacto-nightly-scan:${{ matrix.image }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      - name: Upload SARIF (Security)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: nightly-trivy-${{ matrix.image }}
+
+      - name: Upload artefact Trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-trivy-${{ matrix.image }}
+          path: trivy-results.sarif
+          retention-days: 30
+          if-no-files-found: ignore
