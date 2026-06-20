@@ -1,7 +1,7 @@
 # Stratégie de tests automatisés — Projet Refacto (microservices)
 
 > Rapport pour l'épreuve « Stratégie de tests automatisés ».
-> **Parties 1 et 3 rédigées** ; **Partie 2 = plan de rédaction** (points à développer individuellement).
+> Document complet : **Parties 1, 2 et 3 rédigées**.
 
 ---
 
@@ -23,7 +23,7 @@ Chaque service est autonome : il possède son propre domaine métier, sa propre 
 | **project-service** | Projets, membres, clôture | 3001 | SQLite |
 | **task-service** | Tâches (création, affectation, complétion, réouverture, suppression) | 3002 | SQLite |
 | **notification-service** | Génération et stockage des notifications | 3003 | SQLite |
-| **redis** | Broker de messages — Redis Streams (`todo:events`) | 6379 | en mémoire |
+| **redis** | Broker de messages Redis Streams (`todo:events`) | 6379 | en mémoire |
 
 Chaque service backend suit un découpage **Domain-Driven Design** :
 - `domain/` : logique métier **pure**, sans dépendance d'infrastructure (règle vérifiée par dependency-cruiser : pas de `sqlite3`, `express`, etc. dans le domaine) ;
@@ -114,7 +114,7 @@ sequenceDiagram
 ## 1.5 Dépendances critiques
 
 - **api-gateway → auth-service** : sans l'auth-service, aucune requête authentifiée ne passe (le gateway renvoie 503). C'est la dépendance synchrone la plus critique.
-- **project-service / task-service / notification-service → Redis** : le broker porte la communication asynchrone (les deux premiers publient, le notification-service consomme). Si Redis est indisponible, les notifications ne sont plus produites — mais les opérations métier locales (créer, clôturer, etc.) restent possibles. *(L'auth-service ne dépend pas du broker.)*
+- **project-service / task-service / notification-service → Redis** : le broker porte la communication asynchrone (les deux premiers publient, le notification-service consomme). Si Redis est indisponible, les notifications ne sont plus produites — mais les opérations métier locales (créer, clôturer, etc.) restent possibles. *(L'auth-service ne dépend pas du broker : il gère ses sessions en mémoire via `express-session`. Le `REDIS_URL` et le `depends_on: redis` déclarés pour lui dans `docker-compose.yml` sont aujourd'hui inutilisés.)*
 - **notification-service → événements de task/project** : il n'a de sens que s'il reçoit les événements ; il est *consommateur* et dépend du contrat d'événements partagé.
 - **frontend → api-gateway** : le front ne parle qu'à la gateway (jamais aux services directement).
 
@@ -127,72 +127,97 @@ sequenceDiagram
 
 ---
 
-# Partie 2 — Stratégie de tests *(plan à développer)*
+# Partie 2 — Stratégie de tests
 
-> Squelette de rédaction : points à argumenter, ancrés sur notre code. À développer (50 % de la note → la partie la plus argumentée). **Rappel barème : relier chaque choix de test à une caractéristique de l'architecture, et assumer les compromis.**
+Cette partie justifie nos choix de tests en les **reliant aux caractéristiques d'architecture** décrites en Partie 1 et en **assumant explicitement les compromis**. C'est la partie la plus argumentée (la plus pondérée de l'évaluation) : pour chaque décision (niveau de test, doublure, place dans la CI), nous disons *pourquoi* ce choix et *ce qu'il laisse de côté*.
 
 ## 2.1 Choix du niveau de tests (pyramide)
 
-**Notre forme = pyramide classique** : beaucoup d'unitaires, quelques tests d'intégration, peu d'E2E.
+Notre stratégie adopte une **pyramide de tests classique** : une large base de tests **unitaires**, une couche intermédiaire et plus réduite de tests d'**intégration**, et un sommet volontairement étroit de tests **E2E**. Cette forme n'est pas un réflexe : elle découle directement de l'architecture décrite en Partie 1. L'essentiel de la valeur et donc du risque réside dans des **règles métier isolées dans le domaine** (Partie 1.2), que l'on peut vérifier à très bas coût sans aucune infrastructure. Les niveaux supérieurs sont alors réservés à ce que l'isolation ne peut pas prouver : le câblage interne d'un service, puis l'intégration verticale de toute la stack.
 
-- **Unitaire (base, la majorité de nos tests)**
-  - *Ce qu'on teste* : la **logique métier des use-cases**, service par service, avec repository **InMemory** et event bus **InMemory**.
-    - `project-service/spec/use-cases/` : `createProject`, `updateProject`, `closeProject`, `addMember`, `removeMember` (règles : seul le **propriétaire** (chef de projet) clôture, conflits, `NOT_FOUND`…).
-    - `task-service/spec/use-cases/` : `createTask`, `assignTask`, `completeTask`, `reopenTask`, `deleteTask`, `updateTask`.
-    - `auth-service/spec/` : `userRepository` (test du port de persistance ; `authRoutes` relève de l'intégration, voir plus bas).
-    - `notification-service/spec/` : `createNotificationIfAllowed` (règle « pas de notification à soi-même »), `notificationRepository`.
-  - *Ce qu'on ne teste pas ici* : la vraie base SQLite, le vrai Redis, le câblage HTTP → délégué aux niveaux supérieurs (éviter la duplication, garder ces tests rapides).
-  - *Volume* : le plus élevé. Sur ~16 fichiers de specs Jest (project ×5, task ×6, auth ×2, notification ×3), la grande majorité sont des **tests unitaires de use-cases**. Justifié par une architecture **riche en règles métier** isolées dans le domaine.
+### Niveau unitaire — la base de la pyramide
 
-- **Intégration (intermédiaire, quelques tests)**
-  - *Ce qu'on teste* : le **câblage entre composants internes d'un service**.
-    - `notification-service/spec/eventHandlers.integration.spec.ts` : chaîne **event bus → handlers → repository** (un événement `TaskAssigned` crée bien la notification).
-    - `auth-service/spec/authRoutes.spec.ts` : routes Express via **supertest** (entrées/sorties HTTP).
-  - *Ce qu'on ne teste pas* : la communication **inter-services réelle** (via vrai Redis) → couverte en E2E.
-  - *Volume* : modéré.
+**Ce qu'on teste.** La **logique métier des use-cases**, service par service, en injectant un repository **InMemory** et un event bus **InMemory** (conformément au découpage DDD de la Partie 1.2). Concrètement, nos specs Jest couvrent : `project-service/spec/use-cases/` (`createProject`, `updateProject`, `closeProject`, `addMember`, `removeMember` avec des règles comme « seul le **propriétaire** clôture », les conflits et le `NOT_FOUND`) ; `task-service/spec/use-cases/` (`createTask`, `assignTask`, `completeTask`, `reopenTask`, `deleteTask`, `updateTask`) ; `auth-service/spec/userRepository.spec.ts` (test du **port** de persistance) ; et `notification-service/spec/` (`createNotificationIfAllowed`, qui porte la règle « pas de notification à soi-même », ainsi que `notificationRepository`).
 
-- **E2E (sommet, peu de tests)**
-  - *Ce qu'on teste* : des **parcours complets sur la stack réelle** (Playwright + `docker compose up`), donc gateway + services + **vrai Redis** + **vraie SQLite** + nginx.
-    - `tests/e2e/microservices/` : `auth-flow` (connexion), `project-tasks` (CRUD projet/tâche), `task-actions` (terminer/réouvrir, assigner/désassigner, supprimer, clôturer), `notifications` (vues + déclenchement des parcours).
-  - *Ce qu'on ne teste pas (lacune à assumer)* : tous les cas limites (trop coûteux). **Surtout** : les scénarios « notification » **déclenchent** le parcours asynchrone (assignation, complétion, clôture) mais **n'assertent pas la livraison réelle de la notification** côté destinataire (l'assignation se fait vers un `userId` aléatoire ≠ utilisateur connecté). La chaîne événementielle est donc **exécutée** mais **pas vérifiée de bout en bout** — zone de risque identifiée.
-  - *Volume* : le plus faible (lent, coûteux à maintenir).
+**Ce qu'on ne teste pas à ce niveau.** La vraie base SQLite, le vrai Redis et le câblage HTTP. Cette frontière est volontaire : la déléguer aux niveaux supérieurs évite la **duplication** et préserve ce qui fait la valeur de l'unitaire, des tests **rapides et déterministes**, exécutables à chaque modification.
 
-- **À argumenter** : pourquoi une **pyramide** et pas un *trophée* — notre valeur est surtout dans les **règles métier** (testables unitairement à bas coût). L'**asynchrone (Redis)** est le seul vrai risque d'intégration : il est **exercé** en E2E mais sa **livraison n'est pas encore assertée** (lacune identifiée, cf. 2.1 E2E et Partie 3 — Exemple C). C'est l'axe d'amélioration prioritaire de notre couverture.
+**Volume et justification.** C'est le niveau le plus fourni. Sur nos ~16 fichiers de specs (project ×5, task ×6, auth ×2, notification ×3), la grande majorité sont des **tests unitaires de use-cases**. Ce poids est justifié par une architecture **riche en règles métier** (autorisations, transitions d'état, conflits) qui se prêtent précisément à une vérification en isolation (voir l'Exemple A en Partie 3).
+
+### Niveau intégration — la couche intermédiaire
+
+**Ce qu'on teste.** Le **câblage entre composants internes d'un même service**, là où une fonction prise isolément ne suffit plus. Deux cas représentatifs : `notification-service/spec/eventHandlers.integration.spec.ts` valide la chaîne **event bus → handlers → repository** (un événement `TaskAssigned` crée bien la notification attendue) ; `auth-service/spec/authRoutes.spec.ts` exerce les **routes Express via supertest**, donc les entrées/sorties HTTP du service.
+
+**Ce qu'on ne teste pas à ce niveau.** La communication **inter-services réelle** : ces tests s'arrêtent à la frontière d'un service et utilisent encore un event bus InMemory, pas le vrai Redis Streams. La livraison effective d'un service producteur à un service consommateur relève donc de l'E2E.
+
+**Volume et justification.** Modéré. Cette couche n'a de sens que là où l'assemblage interne porte un risque propre, typiquement le notification-service, qui est par nature un **consommateur d'événements** (Partie 1.3) et dont la valeur réside dans le câblage *événement → handler → stockage* (voir l'Exemple B en Partie 3).
+
+### Niveau E2E — le sommet
+
+**Ce qu'on teste.** Des **parcours utilisateur complets sur la stack réelle** (Playwright contre un `docker compose up`), traversant donc nginx, l'api-gateway, les services, le **vrai Redis** et la **vraie SQLite**. Nos specs `tests/e2e/microservices/` couvrent `auth-flow` (connexion), `project-tasks` (CRUD projet/tâche), `task-actions` (terminer/réouvrir, assigner/désassigner, supprimer, clôturer) et `notifications` (consultation et déclenchement des parcours).
+
+**Ce qu'on ne teste pas (lacune assumée).** Tous les cas limites, trop coûteux à ce niveau. **Surtout** : les scénarios « notification » **déclenchent** le parcours asynchrone (assignation, complétion, clôture) mais **n'assertent pas la livraison réelle de la notification** côté destinataire l'assignation y vise un `userId` aléatoire, différent de l'utilisateur connecté. La chaîne événementielle est donc **exécutée** mais **pas vérifiée de bout en bout**. C'est une zone de risque que nous reconnaissons explicitement (détaillée dans l'Exemple C en Partie 3).
+
+**Volume et justification.** Le plus faible. Ces tests sont **lents** (build des images, démarrage de la stack) et plus **fragiles** (timing de l'UI) ; on s'en tient donc à quelques parcours critiques représentatifs.
+
+> **Pourquoi une pyramide et pas un *trophée* ?** Parce que notre valeur se concentre dans les **règles métier**, testables unitairement à bas coût et de façon déterministe : il serait inutilement coûteux et redondant d'épaissir la couche intégration ou E2E pour les couvrir. Le **seul vrai risque d'intégration** est la communication **asynchrone via Redis** (caractéristique structurante de l'architecture, Partie 1.3) : elle est aujourd'hui **exercée** en E2E mais sa **livraison n'est pas encore assertée** (cf. niveau E2E ci-dessus et Exemple C). C'est, en toute honnêteté, l'**axe d'amélioration prioritaire** de notre couverture.
 
 ## 2.2 Gestion des dépendances externes
 
-Pour chaque dépendance, dire **quelle doublure** et **pourquoi** :
+Notre système ne consomme **aucune API tierce métier** (Partie 1.6) : les seules dépendances que nos tests doivent neutraliser sont **techniques et internes** (base de données, broker, service d'authentification). Pour chacune, nous choisissons une doublure selon un principe constant, déjà posé en 2.1 : privilégier la **vitesse** et le **déterminisme** aux niveaux bas de la pyramide, et conserver la **vérité** des implémentations réelles en E2E.
 
-- **Base de données (SQLite)**
-  - Approche : **vraie implémentation en mémoire** = un **fake écrit à la main** (`persistence/inMemory.ts`) qui implémente le **même port** que SQLite.
-  - Pourquoi : rapide, pas de fichier, mais **fidèle au contrat** du port (≠ mock générique). En E2E, on utilise la **vraie SQLite** (Docker).
-  - *Compromis assumé* : l'InMemory peut **diverger** de SQLite (contraintes SQL, types) → risque couvert par l'E2E.
+### Base de données — SQLite
 
-- **Broker (Redis Streams)**
-  - Approche : **event bus InMemory** (`eventBus/inMemory.ts`) pour l'unitaire et l'intégration ; **vrai Redis** en E2E.
-  - Pourquoi : tester la **logique des handlers** sans dépendre de l'infra broker.
-  - *Compromis assumé* : les sémantiques réelles (consumer groups, at-least-once, ordre) ne sont pas testées au niveau unitaire → vérifiées en E2E.
+**Doublure retenue.** Une vraie implémentation en mémoire, écrite à la main (`persistence/inMemory.ts`), qui respecte **exactement le même port** que l'implémentation SQLite (`TaskRepository`, `UserRepository`, etc.). Une *factory* (`persistence/index.ts`) choisit l'une ou l'autre selon `NODE_ENV` : l'InMemory quand `NODE_ENV === 'test'`, la SQLite sinon.
 
-- **Authentification (api-gateway → auth-service `/auth/me`)**
-  - Approche cible : **doublure de `forwardJson`** (mock du module HTTP) pour tester le middleware d'auth en isolation.
-  - *Zone de risque à assumer* : **l'api-gateway n'a pas encore de tests** (lacune identifiée, carte dédiée). À reconnaître explicitement (le barème valorise l'honnêteté sur les lacunes).
+**Pourquoi ce choix.** Cette doublure est un *fake* fidèle au contrat, pas un mock générique : elle se comporte comme un vrai dépôt (lecture, écriture, recherche) mais sans fichier ni accès disque. Les tests unitaires restent ainsi rapides et déterministes tout en exerçant la logique métier à travers une interface **identique** à celle de production.
 
-- **Argument transverse fort** : **aucune API tierce non maîtrisée** → on n'a pas besoin de fakes « subis ». On choisit nos doublures pour la **vitesse** (unitaire) et on garde la **vérité** en conteneur (E2E).
+**Compromis assumé.** Le fake InMemory peut **diverger** du SQLite réel sur les comportements propres au moteur (contraintes, typage, unicité). Ce risque est délibérément reporté sur le niveau E2E, où la vraie base SQLite tourne dans le conteneur (cf. 2.1, niveau E2E).
+
+### Broker de messages — Redis Streams
+
+**Doublure retenue.** Un **event bus InMemory** (`eventBus/inMemory.ts`) pour l'unitaire et l'intégration ; le **vrai Redis Streams** (`eventBus/redisEventBus.ts`) en E2E.
+
+**Pourquoi ce choix.** Aux niveaux bas, ce qui nous intéresse est la **logique des handlers** et le câblage interne du service (Exemple B), pas la mécanique du broker. Le bus InMemory permet d'émettre un événement et d'observer son effet sur le repository sans dépendre d'une infrastructure externe.
+
+**Compromis assumé.** Les sémantiques réelles de Redis Streams (consumer groups, garantie *at-least-once*, ordre des messages, reprise sur incident) ne sont pas couvertes par le bus InMemory. Elles ne sont exercées qu'en E2E, où leur **livraison de bout en bout n'est pas encore assertée** (lacune déjà posée en 2.1 et reprise dans l'Exemple C). Cela reste cohérent avec le fait que l'asynchrone via Redis est notre **principal risque d'intégration**.
+
+### Authentification — api-gateway vers auth-service
+
+**Doublure cible.** Le gateway authentifie chaque requête en appelant `GET /auth/me` via la fonction `forwardJson` (`infra/httpClient.ts`), utilisée par le middleware `requireAuthGateway`. Pour tester ce middleware en isolation, l'approche visée est de **doubler `forwardJson`** afin de simuler les réponses de l'auth-service (200 avec identité, 401/403, ou indisponibilité aboutissant à un 503) sans démarrer réellement l'auth-service.
+
+**Pourquoi ce choix.** La valeur à vérifier ici est la **logique du middleware** : injection de l'en-tête `x-user-id` en cas de succès, propagation des statuts d'erreur, et **repli en 503** quand l'auth-service est injoignable (dépendance synchrone la plus critique, Partie 1.5). Doubler la couche HTTP isole cette logique du réseau.
+
+**Zone de risque à assumer.** À ce jour, **l'api-gateway n'a pas de tests automatisés** (un document interne, `services/api-gateway/doc/tests-a-ajouter.md`, recense ce manque). Nous le reconnaissons explicitement comme une lacune, d'autant plus sensible que le gateway porte l'authentification de **toutes** les requêtes.
+
+> **Argument transverse.** Comme nous **contrôlons l'intégralité** des composants et ne dépendons d'aucune API tierce non maîtrisée (Partie 1.6), nous ne subissons jamais une doublure « imposée » par un service externe. Nos doublures sont des **choix délibérés** : des fakes fidèles au contrat des ports pour la vitesse aux niveaux bas, et les implémentations réelles en conteneur pour la vérité en E2E.
 
 ## 2.3 Intégration dans le pipeline CI/CD
 
-S'appuyer sur nos workflows réels (`doc/ci/vue-ensemble-ci.md`, ADR 004) :
+Notre pipeline applique à la CI le **principe *fail-fast*** posé par l'ADR 004 (`doc/ci/vue-ensemble-ci.md`) : chaque commit ne déclenche que le **moins coûteux** ; le coûteux n'est payé qu'au **merge sur `main`** ou la **nuit**. Chaque niveau de la pyramide (2.1) est ainsi placé là où son rapport coût/bénéfice est le meilleur.
 
-| Type de test | Quand | Contrainte | Temps cible |
+| Type de test | Quand (workflow) | Bloquant ? | Coût relatif |
 |---|---|---|---|
-| **Unitaire + intégration (Jest)** | **PR / push de branche** (`ci.yml`), **ciblés** sur les services modifiés | **Bloquant** pour la PR | < ~5 min |
-| **Unitaire + intégration (tous)** | **merge sur main** (`main-quality.yml`) | Bloquant sur main | — |
-| **E2E (Playwright)** | **merge sur main** + **nightly** | Job **séparé/parallèle** ; bloquant sur main | le plus long (build Docker) |
+| **Unitaire + intégration (Jest), ciblés** sur les services modifiés | push de branche et PR vers `main` (`ci.yml`) | Oui, bloque la PR | faible (feedback court) |
+| **Unitaire + intégration (tous les services)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | modéré |
+| **E2E (Playwright, stack `docker compose`)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | le plus élevé (build des images) |
 
-- **À argumenter** :
-  - *Pourquoi les E2E ne tournent pas sur chaque PR* : coût (`docker compose up --build`), lenteur → on les réserve à main et à la CI nocturne. **Compromis assumé** : un bug E2E n'est attrapé **qu'après** le merge, pas sur la PR.
-  - *Pourquoi l'unitaire est ciblé sur les PR* : feedback rapide, on ne teste que ce qui change (matrix `dorny/paths-filter`), garde-fou *full build* si fichier global modifié.
-  - *Parallélisme sur main* : E2E, CodeQL, Sonar tournent en jobs parallèles pour réduire le temps total.
+### Unitaire et intégration — ciblés sur les PR
+
+**Le mécanisme.** Sur chaque push de branche et chaque PR vers `main`, `ci.yml` ne lance les tests Jest que sur les services réellement touchés. Un premier job `detect` construit, via `dorny/paths-filter`, la **matrice des services modifiés** ; le job `services` exécute alors lint et tests **uniquement** sur ces workspaces. L'objectif est un feedback **rapide et bloquant** pour la PR, sans payer le coût d'une suite complète à chaque commit.
+
+**Le garde-fou.** Si un fichier **global** change (lockfile racine, `tsconfig.json`, `eslint.config.mjs`, `.dependency-cruiser.js`, ou `ci.yml` lui-même), la matrice bascule sur **tous** les services (*full build*), pour ne rien laisser passer (ADR 004).
+
+### E2E — réservés à `main` et à la nuit
+
+**La raison.** Les tests Playwright imposent de construire les images et de démarrer toute la stack (`docker compose`), avec un vrai Redis et une vraie SQLite (cf. 2.1, niveau E2E). C'est lent et coûteux : on ne les exécute donc pas sur chaque PR, mais au merge sur `main` (`main-quality.yml`, job `e2e` plafonné à 30 minutes) et toutes les nuits (`nightly.yml`, qui démarre en plus la stack via `docker compose up -d` et attend la santé du frontend puis de Redis).
+
+**Le compromis assumé.** Un bug que **seul** l'E2E détecte n'est attrapé qu'**après** le merge, pas sur la PR. C'est un arbitrage délibéré entre vitesse de feedback et couverture, cohérent avec le faible volume d'E2E (sommet de la pyramide).
+
+### Parallélisme — étagement des coûts
+
+Sur `main`, `main-quality.yml` lance **en parallèle** plusieurs jobs indépendants : tests unitaires, E2E, CodeQL, SonarCloud, vérification des licences et `npm audit` bloquant. Seul `sonarcloud` attend `unit-tests`, dont il consomme la couverture. Ce parallélisme réduit le temps total de la validation exhaustive. La CI nocturne (`nightly.yml`) va plus loin avec des scans approfondis (images Trivy, audit complet, licences sur tout le monorepo), **informatifs** (ils publient des rapports sans bloquer), alors que les tests, eux, restent bloquants.
+
+> **En résumé**, le pipeline traduit la forme de la pyramide (2.1) en logique de coût : l'unitaire, rapide et ciblé, sert de garde-fou **bloquant sur chaque PR** ; l'E2E, lent mais fidèle, valide la **stack réelle** au merge et la nuit. Le seul prix assumé de ce choix est qu'un échec strictement E2E est détecté **après** le merge, pas avant.
 
 ---
 
@@ -328,9 +353,3 @@ test("Terminer et réouvrir une tâche", async ({ page }) => {
 
 **Ses limites.** Ce test est **lent** (build des images Docker, démarrage de la stack) et plus **fragile** (timing de l'UI), ce qui justifie qu'il ne tourne **que sur `main` et en nightly**, pas sur chaque PR — un échec n'est donc détecté qu'**après** le merge. En cas d'échec, la **cause est plus difficile à localiser** (beaucoup de composants en jeu). Surtout — et c'est notre **principale zone de risque** — ce test couvre le flux **synchrone HTTP** (les flèches pleines du diagramme de séquence en 1.4). La **communication asynchrone** (publication Redis par task/project → consommation par notification-service, soit la **branche en pointillés** de ce même diagramme), qui est pourtant une caractéristique structurante de notre architecture, est **déclenchée** par les specs `notifications.spec.ts` mais **sans assertion sur la notification réellement livrée** (l'assignation y vise un `userId` aléatoire, différent de l'utilisateur connecté). **La livraison événementielle de bout en bout n'est donc pas réellement vérifiée par nos E2E actuels.** Nous l'assumons comme une lacune identifiée, dont la correction est claire : se connecter avec l'utilisateur assigné et asserter l'apparition de la notification après rafraîchissement.
 
----
-
-## Notes de cohérence (à garder en tête pour la rédaction)
-- **Lier Partie 2 ↔ Partie 1** : chaque choix de test doit citer une caractéristique d'archi (ex. « communication **asynchrone via Redis** → on la valide en **E2E** car les doublures ne prouvent pas la livraison réelle »).
-- **Assumer les lacunes** : api-gateway non testé, E2E post-merge, InMemory ≠ SQLite. Le barème **valorise** ces aveux argumentés.
-- **Schéma** : le diagramme Mermaid de la Partie 1 sert de référence visuelle (exportable en image pour le rendu PDF).
