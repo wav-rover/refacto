@@ -8,10 +8,12 @@ import type {
   NotificationId,
 } from '../domain/notification';
 import type { NotificationRepository } from '../ports/notificationRepository';
+import migrations from './migrations';
+import { runMigrations } from './migrations/runner';
 
 const sqlite3 = sqlite3Pkg.verbose();
 
-const getDatabaseLocation = (): string =>
+export const getDatabaseLocation = (): string =>
   process.env.NOTIFICATION_SQLITE_DB_LOCATION ??
   path.join(
     path.resolve(__dirname, '..', '..', '..', '..'),
@@ -61,27 +63,29 @@ function init(): Promise<void> {
         return;
       }
 
-      database.run(
-        `CREATE TABLE IF NOT EXISTS notifications (
-          id varchar(36) PRIMARY KEY,
-          userId varchar(36) NOT NULL,
-          message text NOT NULL,
-          type varchar(64) NOT NULL,
-          createdAt varchar(30) NOT NULL
-        )`,
-        (createErr: Error | null) => {
-          if (createErr) {
-            reject(createErr);
-            return;
-          }
+      // En production, les migrations sont jouées par un conteneur dédié
+      // (RUN_MIGRATIONS_ON_STARTUP=false). En développement/tests, on migre
+      // au démarrage. Le runner est idempotent : double exécution sans effet.
+      if (process.env.RUN_MIGRATIONS_ON_STARTUP === 'false') {
+        if (process.env.NODE_ENV !== 'test') {
+          console.log(
+            `[notification-service] Using sqlite database at ${location} (migrations skipped at startup)`,
+          );
+        }
+        resolve();
+        return;
+      }
+
+      runMigrations(database, 'up', migrations)
+        .then(() => {
           if (process.env.NODE_ENV !== 'test') {
             console.log(
               `[notification-service] Using sqlite database at ${location}`,
             );
           }
           resolve();
-        },
-      );
+        })
+        .catch(reject);
     });
   });
 }
