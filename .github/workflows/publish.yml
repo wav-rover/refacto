@@ -36,16 +36,22 @@ jobs:
         include:
           - image: auth-service
             dockerfile: services/auth-service/Dockerfile
+            pkg_path: services/auth-service/package.json
           - image: project-service
             dockerfile: services/project-service/Dockerfile
+            pkg_path: services/project-service/package.json
           - image: task-service
             dockerfile: services/task-service/Dockerfile
+            pkg_path: services/task-service/package.json
           - image: notification-service
             dockerfile: services/notification-service/Dockerfile
+            pkg_path: services/notification-service/package.json
           - image: api-gateway
             dockerfile: services/api-gateway/Dockerfile
+            pkg_path: services/api-gateway/package.json
           - image: frontend
             dockerfile: Dockerfile.frontend
+            pkg_path: package.json
 
     steps:
       # 1. Checkout du SHA validé par la CI qualité/sécurité (pas le HEAD courant).
@@ -53,6 +59,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+
+      # 1b. Lecture de la version SemVer depuis le package.json du service.
+      #     Produit trois outputs : version (X.Y.Z), minor (X.Y), major (X).
+      - name: Lire version (package.json)
+        id: pkg
+        run: |
+          VERSION=$(node -p "require('./${{ matrix.pkg_path }}').version")
+          echo "version=$VERSION"                          >> "$GITHUB_OUTPUT"
+          echo "minor=$(echo "$VERSION" | cut -d. -f1-2)" >> "$GITHUB_OUTPUT"
+          echo "major=$(echo "$VERSION" | cut -d. -f1)"   >> "$GITHUB_OUTPUT"
 
       # 2. QEMU : émulation linux/arm64 sur les runners GitHub (amd64 natif).
       - name: Setup QEMU
@@ -70,9 +86,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Tags d'image : latest + SHA court du commit validé.
-      #    type=semver : inactif sur ce flux main (aucun tag Git semver) ;
-      #    s'activera si un futur trigger release est ajouté au workflow.
+      # 5. Tags d'image : latest + SHA court + SemVer complet depuis package.json.
+      #    Produit 5 tags : latest, sha-<court>, X.Y.Z, X.Y, X.
       - name: Métadonnées / tags
         id: meta
         uses: docker/metadata-action@v5
@@ -81,7 +96,9 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=short
-            type=semver,pattern={{version}}
+            type=raw,value=${{ steps.pkg.outputs.version }}
+            type=raw,value=${{ steps.pkg.outputs.minor }}
+            type=raw,value=${{ steps.pkg.outputs.major }}
 
       # 6. Build amd64 LOCAL pour scan Trivy (load:true, push:false).
       #    Un manifeste multi-arch n'est PAS chargeable dans le démon Docker local ;
@@ -178,3 +195,71 @@ jobs:
           sbom: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # -------------------------------------------------------------------------
+  # Mise à jour du manifeste de compatibilité après publication réussie.
+  # Lit la version de chaque service depuis son package.json, écrit
+  # deploy/manifest.json et commit sur main avec [skip ci].
+  # -------------------------------------------------------------------------
+  update-manifest:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit sur main
+
+    steps:
+      # Checkout du HEAD de main (pas le SHA fixé dans publish) pour que le
+      # commit s'applique sur la dernière version de la branche.
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Script Node inline : lit les 6 package.json et génère deploy/manifest.json.
+      # GITHUB_SHA est défini par l'env du job (head_sha du workflow déclencheur).
+      - name: Générer deploy/manifest.json
+        env:
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node - <<'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+
+          const services = {
+            'auth-service':         'services/auth-service/package.json',
+            'project-service':      'services/project-service/package.json',
+            'task-service':         'services/task-service/package.json',
+            'notification-service': 'services/notification-service/package.json',
+            'api-gateway':          'services/api-gateway/package.json',
+            'frontend':             'package.json',
+          };
+
+          const versions = {};
+          for (const [name, pkgPath] of Object.entries(services))
+            versions[name] = require(path.resolve(pkgPath)).version;
+
+          const manifest = {
+            updated_at: new Date().toISOString(),
+            commit: (process.env.GITHUB_SHA || 'unknown').slice(0, 7),
+            services: versions,
+          };
+
+          fs.mkdirSync('deploy', { recursive: true });
+          fs.writeFileSync('deploy/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          console.log(JSON.stringify(manifest, null, 2));
+          EOF
+
+      # Commit uniquement si le fichier a changé (git diff --cached --quiet = exit 0 si
+      # aucun changement → le || court-circuite le commit mais le && chaîne bien push).
+      - name: Commit et push (si changement)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update deployment manifest [skip ci]"
+            git push
+          else
+            echo "Manifeste inchangé — pas de commit."
+          fi

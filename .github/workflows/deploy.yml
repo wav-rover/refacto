@@ -1,0 +1,148 @@
+name: CD — Déploiement
+
+# Pipeline #4 — déploiement continu.
+# Déclenché UNIQUEMENT après succès de « Publication Docker » sur main :
+# les images sont dans GHCR et le manifeste est à jour.
+#
+# Chaîne complète :
+#   push main → main-quality → publish → deploy (ce workflow)
+#
+# Environnements GitHub à configurer dans Settings → Environments :
+#   - integration : aucun reviewer (déploiement automatique)
+#   - production  : reviewer(s) requis (manual gate avant déploiement)
+on:
+  workflow_run:
+    workflows: ["Publication Docker"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1 — deploy-integration : déploiement automatique en intégration.
+  # Lit deploy/manifest.json, exporte les versions et simule le déploiement.
+  # ---------------------------------------------------------------------------
+  deploy-integration:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: integration
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # Lit les versions depuis le manifeste et les exporte dans GITHUB_ENV
+      # pour les steps suivants (AUTH_SERVICE_VERSION, PROJECT_SERVICE_VERSION…).
+      - name: Lire le manifeste et exporter les versions
+        run: |
+          node - <<'EOF'
+          const m = require('./deploy/manifest.json');
+          const lines = Object.entries(m.services)
+            .map(([s, v]) => `${s.toUpperCase().replace(/-/g, '_')}_VERSION=${v}`)
+            .join('\n');
+          require('fs').appendFileSync(process.env.GITHUB_ENV, lines + '\n');
+          console.log('=== Manifeste de déploiement ===');
+          console.log(JSON.stringify(m, null, 2));
+          EOF
+
+      # Simulation du déploiement en intégration.
+      # En production réelle : remplacer les echo par un SSH + docker compose pull/up.
+      - name: Déploiement intégration (simulation)
+        run: |
+          echo "=========================================="
+          echo "  DÉPLOIEMENT INTÉGRATION"
+          echo "=========================================="
+          echo ""
+          echo "Images déployées depuis GHCR :"
+          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
+          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
+          echo ""
+          echo "Commandes équivalentes sur le serveur d'intégration :"
+          echo "  docker compose -f docker-compose.prod.yml pull"
+          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
+          echo ""
+          echo "=== Stack intégration opérationnelle ==="
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — manual-gate : bloque le pipeline jusqu'à approbation manuelle.
+  # L'environment 'integration' doit être configuré avec des required reviewers
+  # dans Settings → Environments → integration.
+  # GitHub envoie une notification ; le reviewer approuve dans l'UI Actions.
+  # ---------------------------------------------------------------------------
+  manual-gate:
+    needs: deploy-integration
+    runs-on: ubuntu-latest
+    environment: integration
+
+    steps:
+      - name: Validation manuelle de l'intégration
+        run: |
+          echo "Intégration approuvée — passage en production autorisé."
+
+  # ---------------------------------------------------------------------------
+  # Job 3 — deploy-production : déploiement en production après approbation.
+  # Même mécanique que deploy-integration, environment 'production' requis.
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    needs: manual-gate
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Lire le manifeste et exporter les versions
+        run: |
+          node - <<'EOF'
+          const m = require('./deploy/manifest.json');
+          const lines = Object.entries(m.services)
+            .map(([s, v]) => `${s.toUpperCase().replace(/-/g, '_')}_VERSION=${v}`)
+            .join('\n');
+          require('fs').appendFileSync(process.env.GITHUB_ENV, lines + '\n');
+          console.log('=== Manifeste de déploiement ===');
+          console.log(JSON.stringify(m, null, 2));
+          EOF
+
+      # En cas d'échec : rollback vers les images précédentes du manifeste.
+      # Simulation du rollout service par service (canary / blue-green).
+      - name: Déploiement production (simulation)
+        run: |
+          echo "=========================================="
+          echo "  DÉPLOIEMENT PRODUCTION"
+          echo "=========================================="
+          echo ""
+          echo "Images déployées depuis GHCR :"
+          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
+          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
+          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
+          echo ""
+          echo "Ordre de déploiement (rollout service par service) :"
+          echo "  1. Exécution des migrations de base de données"
+          echo "  2. auth-service    → redémarrage"
+          echo "  3. project-service → redémarrage"
+          echo "  4. task-service    → redémarrage"
+          echo "  5. notification-service → redémarrage"
+          echo "  6. api-gateway     → redémarrage"
+          echo "  7. frontend        → redémarrage"
+          echo ""
+          echo "Commandes équivalentes sur le serveur de production :"
+          echo "  docker compose -f docker-compose.prod.yml pull"
+          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
+          echo ""
+          echo "En cas d'échec → rollback vers les versions précédentes du manifeste."
+          echo ""
+          echo "=== Stack production opérationnelle ==="

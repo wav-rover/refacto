@@ -1,0 +1,90 @@
+name: refacto-prod
+
+# Compose de production : images publiées sur GHCR, pas de build local.
+# Les versions sont injectées par le workflow CD depuis deploy/manifest.json.
+# Exemple de lancement manuel :
+#   AUTH_SERVICE_VERSION=1.0.0 ... docker compose -f docker-compose.prod.yml up -d
+
+services:
+  frontend:
+    image: ghcr.io/wav-rover/frontend:${FRONTEND_VERSION:-latest}
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  project-service:
+    image: ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION:-latest}
+    environment:
+      - PORT=3001
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    volumes:
+      - project-data:/app/data
+    restart: unless-stopped
+
+  task-service:
+    image: ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION:-latest}
+    environment:
+      - PORT=3002
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
+    depends_on:
+      - redis
+    volumes:
+      - task-data:/app/data
+    restart: unless-stopped
+
+  notification-service:
+    image: ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION:-latest}
+    environment:
+      - PORT=3003
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
+    depends_on:
+      - redis
+    volumes:
+      - notification-data:/app/data
+    restart: unless-stopped
+
+  auth-service:
+    image: ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION:-latest}
+    environment:
+      - PORT=3004
+      - SESSION_SECRET=${SESSION_SECRET:-prod-secret-change-me}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      - redis
+    volumes:
+      - auth-data:/app/data
+    restart: unless-stopped
+
+  api-gateway:
+    image: ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION:-latest}
+    environment:
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3004
+      - PROJECT_SERVICE_URL=http://project-service:3001
+      - TASK_SERVICE_URL=http://task-service:3002
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3003
+      - FRONTEND_ORIGIN=http://localhost:3000
+    depends_on:
+      - auth-service
+      - project-service
+      - task-service
+      - notification-service
+    restart: unless-stopped
+
+volumes:
+  auth-data:
+  project-data:
+  task-data:
+  notification-data:

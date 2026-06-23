@@ -203,3 +203,80 @@ jobs:
         uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: ${{ matrix.dockerfile }}
+
+  # ---------------------------------------------------------------------------
+  # Job 6 — build-images : build amd64 + scan Trivy bloquant sur les Dockerfiles
+  # RÉELLEMENT MODIFIÉS. Jamais de push (PR uniquement).
+  # Même matrice que hadolint : une entrée par Dockerfile touché.
+  # ---------------------------------------------------------------------------
+  build-images:
+    needs: detect
+    if: needs.detect.outputs.has_dockerfiles == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile: ${{ fromJSON(needs.detect.outputs.dockerfiles) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Dérive un tag local stable depuis le chemin du Dockerfile.
+      # Ex : services/auth-service/Dockerfile → services-auth-service-Dockerfile
+      #      Dockerfile.frontend              → Dockerfile-frontend
+      - name: Dériver le nom de l'image
+        id: name
+        run: |
+          NAME=$(echo "${{ matrix.dockerfile }}" | tr '/.' '-')
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      # Build amd64 LOCAL uniquement : load:true pour que Trivy puisse inspecter
+      # l'image. push:false — rien n'est envoyé vers GHCR sur PR.
+      # Cache GHA scopé par Dockerfile pour réutiliser les layers entre runs.
+      - name: Build amd64 (PR — scan uniquement, pas de push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: pr-scan:${{ steps.name.outputs.name }}
+          cache-from: type=gha,scope=${{ matrix.dockerfile }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.dockerfile }}
+
+      # Scan Trivy BLOQUANT — même sévérité que publish.yml (HIGH/CRITICAL).
+      - name: Scan Trivy (bloquant)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: pr-scan:${{ steps.name.outputs.name }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      # Rapport SARIF non bloquant (même si l'étape précédente échoue).
+      - name: Scan Trivy (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          image-ref: pr-scan:${{ steps.name.outputs.name }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 0
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+
+      - name: Upload artefact Trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-pr-${{ steps.name.outputs.name }}
+          path: trivy-results.sarif
+          if-no-files-found: ignore
