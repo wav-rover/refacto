@@ -9,10 +9,12 @@ import type {
   ProjectUpdate,
 } from '../domain/project';
 import type { ProjectRepository } from '../ports/projectRepository';
+import migrations from './migrations';
+import { runMigrations } from './migrations/runner';
 
 const sqlite3 = sqlite3Pkg.verbose();
 
-const getDatabaseLocation = (): string =>
+export const getDatabaseLocation = (): string =>
   process.env.PROJECT_SQLITE_DB_LOCATION ??
   path.join(
     path.resolve(__dirname, '..', '..', '..', '..'),
@@ -83,41 +85,29 @@ function init(): Promise<void> {
         return;
       }
 
-      database.run(
-        `CREATE TABLE IF NOT EXISTS projects (
-          id varchar(36) PRIMARY KEY,
-          name varchar(255) NOT NULL,
-          ownerId varchar(36) NOT NULL,
-          status varchar(20) NOT NULL DEFAULT 'open',
-          createdAt varchar(30) NOT NULL
-        )`,
-        (createErr: Error | null) => {
-          if (createErr) {
-            reject(createErr);
-            return;
-          }
-          database.run(
-            `CREATE TABLE IF NOT EXISTS project_members (
-              projectId varchar(36) NOT NULL,
-              userId varchar(36) NOT NULL,
-              PRIMARY KEY (projectId, userId),
-              FOREIGN KEY (projectId) REFERENCES projects(id)
-            )`,
-            (membersErr: Error | null) => {
-              if (membersErr) {
-                reject(membersErr);
-                return;
-              }
-              if (process.env.NODE_ENV !== 'test') {
-                console.log(
-                  `[project-service] Using sqlite database at ${location}`,
-                );
-              }
-              resolve();
-            },
+      // En production, les migrations sont jouées par un conteneur dédié
+      // (RUN_MIGRATIONS_ON_STARTUP=false). En développement/tests, on migre
+      // au démarrage. Le runner est idempotent : double exécution sans effet.
+      if (process.env.RUN_MIGRATIONS_ON_STARTUP === 'false') {
+        if (process.env.NODE_ENV !== 'test') {
+          console.log(
+            `[project-service] Using sqlite database at ${location} (migrations skipped at startup)`,
           );
-        },
-      );
+        }
+        resolve();
+        return;
+      }
+
+      runMigrations(database, 'up', migrations)
+        .then(() => {
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(
+              `[project-service] Using sqlite database at ${location}`,
+            );
+          }
+          resolve();
+        })
+        .catch(reject);
     });
   });
 }
