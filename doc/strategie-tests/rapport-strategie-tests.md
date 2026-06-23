@@ -183,9 +183,9 @@ Notre système ne consomme **aucune API tierce métier** (Partie 1.6) : les seul
 
 ### Authentification — api-gateway vers auth-service
 
-**Doublure cible.** Le gateway authentifie chaque requête en appelant `GET /auth/me` via la fonction `forwardJson` (`infra/httpClient.ts`), utilisée par le middleware `requireAuthGateway`. Pour tester ce middleware en isolation, l'approche visée est de **doubler `forwardJson`** afin de simuler les réponses de l'auth-service (200 avec identité, 401/403, ou indisponibilité aboutissant à un 503) sans démarrer réellement l'auth-service.
+**Doublure cible : un mock de framework.** Le gateway authentifie chaque requête en appelant `GET /auth/me` via la fonction `forwardJson` (`infra/httpClient.ts`), utilisée par le middleware `requireAuthGateway`. Pour tester ce middleware en isolation, l'approche visée est de **mocker `forwardJson` avec Jest** (`jest.mock` / `jest.fn`) afin de simuler les réponses de l'auth-service (200 avec identité, 401/403, ou indisponibilité aboutissant à un 503) sans démarrer réellement l'auth-service. C'est le **seul endroit** où nous recourons à un *mock généré par le framework* plutôt qu'à un *fake* écrit à la main : la frontière à isoler est ici un **appel HTTP sortant unique**, qu'un `jest.fn()` remplace plus simplement qu'une implémentation de port complète.
 
-**Pourquoi ce choix.** La valeur à vérifier ici est la **logique du middleware** : injection de l'en-tête `x-user-id` en cas de succès, propagation des statuts d'erreur, et **repli en 503** quand l'auth-service est injoignable (dépendance synchrone la plus critique, Partie 1.5). Doubler la couche HTTP isole cette logique du réseau.
+**Pourquoi ce choix, et risque accepté.** La valeur à vérifier ici est la **logique du middleware** : injection de l'en-tête `x-user-id` en cas de succès, propagation des statuts d'erreur, et **repli en 503** quand l'auth-service est injoignable (dépendance synchrone la plus critique, Partie 1.5). Mocker la couche HTTP isole cette logique du réseau. Le **risque assumé** est celui, classique, des mocks de framework : le mock **fige notre hypothèse** du contrat de `/auth/me` ; si l'auth-service en modifiait le format de réponse ou les codes, le test resterait **vert à tort** (faux positif). Ce risque est atténué par l'E2E, qui exerce le **vrai** auth-service via le parcours de connexion (`auth-flow`).
 
 **Zone de risque à assumer.** À ce jour, **l'api-gateway n'a pas de tests automatisés** (un document interne, `services/api-gateway/doc/tests-a-ajouter.md`, recense ce manque). Nous le reconnaissons explicitement comme une lacune, d'autant plus sensible que le gateway porte l'authentification de **toutes** les requêtes.
 
@@ -195,11 +195,11 @@ Notre système ne consomme **aucune API tierce métier** (Partie 1.6) : les seul
 
 Notre pipeline applique à la CI le **principe *fail-fast*** posé par l'ADR 004 (`doc/ci/vue-ensemble-ci.md`) : chaque commit ne déclenche que le **moins coûteux** ; le coûteux n'est payé qu'au **merge sur `main`** ou la **nuit**. Chaque niveau de la pyramide (2.1) est ainsi placé là où son rapport coût/bénéfice est le meilleur.
 
-| Type de test | Quand (workflow) | Bloquant ? | Coût relatif |
+| Type de test | Quand (workflow) | Bloquant ? | Temps d'exécution cible |
 |---|---|---|---|
-| **Unitaire + intégration (Jest), ciblés** sur les services modifiés | push de branche et PR vers `main` (`ci.yml`) | Oui, bloque la PR | faible (feedback court) |
-| **Unitaire + intégration (tous les services)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | modéré |
-| **E2E (Playwright, stack `docker compose`)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | le plus élevé (build des images) |
+| **Unitaire + intégration (Jest), ciblés** sur les services modifiés | push de branche et PR vers `main` (`ci.yml`) | Oui, bloque la PR | **< ~5 min** (feedback court) |
+| **Unitaire + intégration (tous les services)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | **quelques minutes** |
+| **E2E (Playwright, stack `docker compose`)** | merge sur `main` (`main-quality.yml`) et nightly (`nightly.yml`) | Oui, bloque `main` | **plafonné à 30 min** sur `main` (`timeout-minutes: 30`), **45 min** la nuit |
 
 ### Unitaire et intégration — ciblés sur les PR
 
