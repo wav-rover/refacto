@@ -6,10 +6,10 @@ const STORAGE_STATE_PATH = "storageState-microservices.json";
 
 setup("authenticate for microservices", async ({ page }) => {
   // Nginx (port 3000) becomes available before the auth-service is fully
-  // initialised behind the gateway. Poll until /api/auth/me gives a real
+  // initialised behind the gateway. Poll until /api/v1/auth/me gives a real
   // HTTP status (200 or 401) so we know the whole chain is ready.
   for (let i = 0; i < 15; i++) {
-    const res = await page.request.get("/api/auth/me").catch(() => null);
+    const res = await page.request.get("/api/v1/auth/me").catch(() => null);
     if (res && (res.status() === 200 || res.status() === 401)) break;
     await page.waitForTimeout(2000);
   }
