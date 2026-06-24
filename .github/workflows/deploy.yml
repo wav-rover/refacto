@@ -61,14 +61,18 @@ jobs:
         run: node deploy/check-compatibility.mjs
 
   # ---------------------------------------------------------------------------
-  # Job 1 — deploy-integration : déploiement automatique en intégration.
-  # Lit deploy/manifest.json, exporte les versions et simule le déploiement.
+  # Job 1 — deploy-integration : déploiement automatique en intégration (SSH).
+  # Lit deploy/manifest.json, copie docker-compose.prod.yml sur la VM INT
+  # et lance pull + migrations + up avec les versions du manifeste.
   # ---------------------------------------------------------------------------
   deploy-integration:
     needs: verify-compatibility
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: integration
+    permissions:
+      contents: read
+      packages: read # GITHUB_TOKEN → docker login GHCR sur la VM
 
     steps:
       - name: Checkout main (HEAD courant)
@@ -90,38 +94,77 @@ jobs:
           console.log(JSON.stringify(m, null, 2));
           EOF
 
-      # Simulation du déploiement en intégration.
-      # En production réelle : remplacer les echo par un SSH + docker compose pull/up.
-      - name: Déploiement intégration (simulation)
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_INT }}
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
         run: |
-          echo "=========================================="
-          echo "  DÉPLOIEMENT INTÉGRATION"
-          echo "=========================================="
-          echo ""
-          echo "Images déployées depuis GHCR :"
-          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
-          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
-          echo ""
-          echo "Commandes équivalentes sur le serveur d'intégration :"
-          echo "  docker compose -f docker-compose.prod.yml pull"
-          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
-          echo ""
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
+          VM_USER: ${{ secrets.VM_USER_INT }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Déploiement intégration (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
+          VM_USER: ${{ secrets.VM_USER_INT }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull
+          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          docker compose -f ${COMPOSE_FILE} up -d --remove-orphans
+
+          REQUIRED="frontend api-gateway auth-service project-service task-service notification-service redis"
+          for svc in \$REQUIRED; do
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
           echo "=== Stack intégration opérationnelle ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
 
   # ---------------------------------------------------------------------------
   # Job 2 — manual-gate : bloque le pipeline jusqu'à approbation manuelle.
-  # L'environment 'integration' doit être configuré avec des required reviewers
-  # dans Settings → Environments → integration.
-  # GitHub envoie une notification ; le reviewer approuve dans l'UI Actions.
+  # Configurer des required reviewers sur l'environment « production »
+  # (Settings → Environments → production).
   # ---------------------------------------------------------------------------
   manual-gate:
     needs: deploy-integration
     runs-on: ubuntu-latest
-    environment: integration
+    environment: production
 
     steps:
       - name: Validation manuelle de l'intégration

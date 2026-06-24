@@ -15,6 +15,7 @@ Il fait le lien avec la liste **« CI »** du tableau Trello *Refacto architectu
 | **2. Qualité & sécurité** | push / merge sur `main` | validation exhaustive + analyses de sécurité | 45 |
 | **3. Publication Docker** | après que la CI #2 est verte sur `main` | construire, scanner et publier les images | 46 |
 | **4. CI lourde** | tous les soirs (planifié) | suite complète + scans approfondis | 47 |
+| **5. Déploiement continu** | après succès de la publication Docker sur `main` | déployer le manifeste sur la VM d'intégration | — |
 
 Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux ; le coûteux n'est payé qu'au merge sur `main` ou la nuit.
 
@@ -94,6 +95,38 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 
 ---
 
+## 5. Déploiement continu (CD)
+
+> *Carte Trello « Gestion des versions pour la CD » — étape 6 : déploiement préprod / intégration depuis le manifeste.*
+
+**Quand** : automatiquement, **une fois le workflow « Publication Docker » passé au vert sur `main`** (images dans GHCR + [`deploy/manifest.json`](../../deploy/manifest.json) à jour).
+
+**Chaîne complète** : `push main` → qualité & sécurité → publication Docker → **déploiement** (ce pipeline).
+
+**Ce qui se lance, dans l'ordre :**
+1. **Vérification de compatibilité** : croise les versions du manifeste avec les contraintes `requires.*` / `provides.*` des labels d'images GHCR (`deploy/check-compatibility.mjs`). Échec = aucun déploiement.
+2. **Déploiement intégration** (SSH, automatique) :
+   - lecture du manifeste et export des versions (`AUTH_SERVICE_VERSION`, `FRONTEND_VERSION`, …) ;
+   - connexion SSH vers la VM d'intégration (`~/refacto`) ;
+   - copie de `docker-compose.prod.yml` ;
+   - `docker login ghcr.io`, `pull`, migrations one-shot (`*-migrate`), puis `up -d` ;
+   - contrôle que les services applicatifs + Redis sont bien `running`.
+3. **Gate manuelle** : approbation requise (environment GitHub `production` avec reviewer(s)) avant toute mise en production.
+4. **Déploiement production** : simulation pour l'instant (étapes 7–9 CD à venir).
+
+**Secrets GitHub requis (intégration)** :
+
+| Secret | Rôle |
+|---|---|
+| `SSH_PRIVATE_KEY_INT` | Clé privée SSH (sans passphrase) |
+| `VM_HOST_INT` | Hôte de la VM |
+| `VM_USER_INT` | Utilisateur SSH |
+| `GITHUB_TOKEN` | Authentification GHCR sur la VM (fourni par Actions) |
+
+**Prérequis VM** : Docker + plugin Compose installés, utilisateur dans le groupe `docker`, répertoire `~/refacto` accessible en écriture. L'environment GitHub `integration` ne doit **pas** avoir de reviewers (déploiement automatique).
+
+---
+
 ## Briques transverses (où elles tournent)
 
 Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés aux pipelines ci-dessus :
@@ -109,5 +142,7 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | — | license-checker (licences des dépendances) | #2 (bloquant), #4 (contrôle approfondi) |
 | 42 | Traçabilité des résultats (GitHub Security, artefacts) | #2 (et #4 pour les rapports) |
 | 43 | Registry privée des images | #3 |
+| — | Compatibilité semver manifeste ↔ labels GHCR | #5 |
+| — | Déploiement SSH intégration | #5 |
 
 
