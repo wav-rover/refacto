@@ -43,6 +43,9 @@ COPY --from=builder /app/services/task-service/dist ./dist
 RUN mkdir -p /app/data
 ENV TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
 
+# Métadonnées de compatibilité (vérifiées au déploiement) : version d'API fournie.
+LABEL provides.api-version="v1"
+
 EXPOSE 3002
 
 CMD ["node", "dist/index.js"]

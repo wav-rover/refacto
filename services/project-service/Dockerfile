@@ -43,6 +43,9 @@ COPY --from=builder /app/services/project-service/dist ./dist
 RUN mkdir -p /app/data
 ENV PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db
 
+# Métadonnées de compatibilité (vérifiées au déploiement) : version d'API fournie.
+LABEL provides.api-version="v1"
+
 EXPOSE 3001
 
 CMD ["node", "dist/index.js"]

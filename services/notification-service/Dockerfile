@@ -43,6 +43,9 @@ COPY --from=builder /app/services/notification-service/dist ./dist
 RUN mkdir -p /app/data
 ENV NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
 
+# Métadonnées de compatibilité (vérifiées au déploiement) : version d'API fournie.
+LABEL provides.api-version="v1"
+
 EXPOSE 3003
 
 CMD ["node", "dist/index.js"]

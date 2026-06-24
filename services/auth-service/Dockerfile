@@ -43,6 +43,9 @@ COPY --from=builder /app/services/auth-service/dist ./dist
 RUN mkdir -p /app/data
 ENV AUTH_SQLITE_DB_LOCATION=/app/data/auth-users.db
 
+# Métadonnées de compatibilité (vérifiées au déploiement) : version d'API fournie.
+LABEL provides.api-version="v1"
+
 EXPOSE 3004
 
 CMD ["node", "dist/index.js"]
