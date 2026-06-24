@@ -118,8 +118,13 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
    - `docker login ghcr.io`, `pull` des images `*-migrate` uniquement ;
    - exécution des conteneurs one-shot `auth-migrate`, `project-migrate`, `task-migrate`, `notification-migrate` ;
    - **aucun** redémarrage des services applicatifs à cette étape.
-5. **Rollout production** : simulation pour l'instant (étape 8 CD — redémarrage service par service).
-6. **Rollback** : non implémenté (étape 9 CD).
+5. **Rollout production** (SSH, étape 8 CD — rolling restart séquentiel) :
+   - `docker login ghcr.io`, `pull` des images applicatives ;
+   - démarrage / mise à jour de `redis` ;
+   - pour chaque service (`auth-service` → `project-service` → `task-service` → `notification-service` → `api-gateway` → `frontend`) : `pull` + `up -d --no-deps` + vérif `running` ;
+   - smoke check HTTP sur `http://127.0.0.1:3000` (`curl` ou `wget`) ;
+   - pas de double stack blue/green (VM unique, compose unique).
+6. **Rollback** : non implémenté (étape 9 CD) — un échec de rollout bloque le pipeline.
 
 **Secrets GitHub requis (intégration)** :
 
@@ -161,5 +166,6 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | — | Compatibilité semver manifeste ↔ labels GHCR | #5 |
 | — | Déploiement SSH intégration | #5 |
 | — | Migrations BDD production (job dédié) | #5 |
+| — | Rollout SSH production (service par service) | #5 |
 
 

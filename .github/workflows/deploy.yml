@@ -255,14 +255,18 @@ jobs:
           EOF
 
   # ---------------------------------------------------------------------------
-  # Job 4 — deploy-production : rollout applicatif (CD étape 8 — à implémenter).
-  # Simulation du redémarrage service par service ; les migrations sont déjà
-  # exécutées par migrate-production (étape 7).
+  # Job 4 — deploy-production : rollout applicatif réel (CD étape 8).
+  # Rolling restart séquentiel : pull + up --no-deps par service.
+  # Les migrations ont déjà été jouées par migrate-production (étape 7).
+  # Échec d'un service = pipeline bloqué (rollback = étape 9).
   # ---------------------------------------------------------------------------
   deploy-production:
     needs: migrate-production
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout main (HEAD courant)
@@ -282,32 +286,74 @@ jobs:
           console.log(JSON.stringify(m, null, 2));
           EOF
 
-      # CD étape 8 — rollout service par service (canary / blue-green).
-      # Les migrations ont déjà été jouées par migrate-production (étape 7).
-      - name: Déploiement production (simulation — étape 8)
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
         run: |
-          echo "=========================================="
-          echo "  DÉPLOIEMENT PRODUCTION (rollout)"
-          echo "=========================================="
-          echo ""
-          echo "Migrations déjà exécutées par migrate-production."
-          echo ""
-          echo "Images à déployer depuis GHCR :"
-          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
-          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
-          echo ""
-          echo "Ordre de rollout (étape 8 — à implémenter) :"
-          echo "  1. auth-service    → redémarrage"
-          echo "  2. project-service → redémarrage"
-          echo "  3. task-service    → redémarrage"
-          echo "  4. notification-service → redémarrage"
-          echo "  5. api-gateway     → redémarrage"
-          echo "  6. frontend        → redémarrage"
-          echo ""
-          echo "En cas d'échec → rollback vers les versions précédentes (étape 9)."
-          echo ""
-          echo "=== Simulation rollout production ==="
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Rollout production (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull redis \\
+            auth-service project-service task-service notification-service api-gateway frontend
+          docker compose -f ${COMPOSE_FILE} up -d redis
+
+          for svc in auth-service project-service task-service notification-service api-gateway frontend; do
+            echo "=== Rollout: \$svc ==="
+            docker compose -f ${COMPOSE_FILE} pull "\$svc"
+            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
+
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsS --max-time 10 http://127.0.0.1:3000/ >/dev/null
+          elif command -v wget >/dev/null 2>&1; then
+            wget -q --spider --timeout=10 http://127.0.0.1:3000/
+          else
+            echo "curl/wget absent — smoke HTTP ignoré"
+          fi
+
+          echo "=== Stack production opérationnelle ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
