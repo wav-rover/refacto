@@ -159,11 +159,74 @@ jobs:
         run: docker compose -f docker-compose.prod.yml down -v
 
   # -------------------------------------------------------------------------
-  # Publication des 6 images (CD étape 2 : bump + build + tags sha / X.Y.Z).
+  # CD étape 4 — manifeste de compatibilité (commit auto sur main).
+  # Figé APRÈS intégration réussie, AVANT push GHCR.
+  # -------------------------------------------------------------------------
+  update-manifest:
+    needs: [bump-version, integration]
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.bump-version.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit sur main
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Générer deploy/manifest.json
+        run: |
+          node - <<'EOF'
+          const fs   = require('fs');
+          const path = require('path');
+          const { execSync } = require('child_process');
+
+          const services = {
+            'auth-service':         'services/auth-service/package.json',
+            'project-service':      'services/project-service/package.json',
+            'task-service':         'services/task-service/package.json',
+            'notification-service': 'services/notification-service/package.json',
+            'api-gateway':          'services/api-gateway/package.json',
+            'frontend':             'package.json',
+          };
+
+          const versions = {};
+          for (const [name, pkgPath] of Object.entries(services))
+            versions[name] = require(path.resolve(pkgPath)).version;
+
+          const manifest = {
+            updated_at: new Date().toISOString(),
+            commit: execSync('git rev-parse --short HEAD').toString().trim(),
+            services: versions,
+          };
+
+          fs.mkdirSync('deploy', { recursive: true });
+          fs.writeFileSync('deploy/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          console.log(JSON.stringify(manifest, null, 2));
+          EOF
+
+      - name: Commit et push (si changement)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update deployment manifest [skip ci]"
+            git push
+          else
+            echo "Manifeste inchangé — pas de commit."
+          fi
+
+  # -------------------------------------------------------------------------
+  # CD étape 5 — push GHCR : build multi-arch + tags sha / X.Y.Z + Trivy.
   # Skippé si aucun service n'a changé depuis le manifeste (hors bootstrap).
   # -------------------------------------------------------------------------
   publish:
-    needs: [bump-version, integration]
+    needs: [bump-version, integration, update-manifest]
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       needs.bump-version.outputs.has_changes == 'true'
@@ -340,72 +403,3 @@ jobs:
           sbom: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-
-  # -------------------------------------------------------------------------
-  # Mise à jour du manifeste de compatibilité après publication réussie.
-  # Lit la version de chaque service depuis son package.json, écrit
-  # deploy/manifest.json et commit sur main avec [skip ci].
-  # -------------------------------------------------------------------------
-  update-manifest:
-    needs: publish
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # commit sur main
-
-    steps:
-      # Checkout du HEAD de main (pas le SHA fixé dans publish) pour que le
-      # commit s'applique sur la dernière version de la branche.
-      - name: Checkout main (HEAD courant)
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Script Node inline : lit les 6 package.json et génère deploy/manifest.json.
-      # Le champ commit = HEAD courant (= commit de bump si bump il y a eu). Il sert
-      # de borne basse au prochain cycle de détection : on l'aligne donc sur l'état
-      # publié pour ne PAS re-détecter le bump précédent comme un changement.
-      - name: Générer deploy/manifest.json
-        run: |
-          node - <<'EOF'
-          const fs   = require('fs');
-          const path = require('path');
-          const { execSync } = require('child_process');
-
-          const services = {
-            'auth-service':         'services/auth-service/package.json',
-            'project-service':      'services/project-service/package.json',
-            'task-service':         'services/task-service/package.json',
-            'notification-service': 'services/notification-service/package.json',
-            'api-gateway':          'services/api-gateway/package.json',
-            'frontend':             'package.json',
-          };
-
-          const versions = {};
-          for (const [name, pkgPath] of Object.entries(services))
-            versions[name] = require(path.resolve(pkgPath)).version;
-
-          const manifest = {
-            updated_at: new Date().toISOString(),
-            commit: execSync('git rev-parse --short HEAD').toString().trim(),
-            services: versions,
-          };
-
-          fs.mkdirSync('deploy', { recursive: true });
-          fs.writeFileSync('deploy/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-          console.log(JSON.stringify(manifest, null, 2));
-          EOF
-
-      # Commit uniquement si le fichier a changé (git diff --cached --quiet = exit 0 si
-      # aucun changement → le || court-circuite le commit mais le && chaîne bien push).
-      - name: Commit et push (si changement)
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add deploy/manifest.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: update deployment manifest [skip ci]"
-            git push
-          else
-            echo "Manifeste inchangé — pas de commit."
-          fi
