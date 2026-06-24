@@ -20,13 +20,58 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  # --- Conteneurs de migration dédiés (production) -------------------------
+  # Chaque service one-shot réutilise l'image applicative, joue les migrations
+  # sur le volume de données puis s'arrête (exit 0). Les services applicatifs
+  # attendent leur succès (depends_on: service_completed_successfully) et NE
+  # migrent PAS au démarrage (RUN_MIGRATIONS_ON_STARTUP=false).
+  project-migrate:
+    image: ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION:-latest}
+    command: ["node", "dist/migrate.js", "up"]
+    environment:
+      - PROJECT_SQLITE_DB_LOCATION=/app/data/project-service.db
+    volumes:
+      - project-data:/app/data
+    restart: "no"
+
+  task-migrate:
+    image: ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION:-latest}
+    command: ["node", "dist/migrate.js", "up"]
+    environment:
+      - TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
+    volumes:
+      - task-data:/app/data
+    restart: "no"
+
+  notification-migrate:
+    image: ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION:-latest}
+    command: ["node", "dist/migrate.js", "up"]
+    environment:
+      - NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
+    volumes:
+      - notification-data:/app/data
+    restart: "no"
+
+  auth-migrate:
+    image: ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION:-latest}
+    command: ["node", "dist/migrate.js", "up"]
+    environment:
+      - AUTH_SQLITE_DB_LOCATION=/app/data/auth-users.db
+    volumes:
+      - auth-data:/app/data
+    restart: "no"
+
   project-service:
     image: ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION:-latest}
     environment:
       - PORT=3001
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - RUN_MIGRATIONS_ON_STARTUP=false
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      project-migrate:
+        condition: service_completed_successfully
     volumes:
       - project-data:/app/data
     restart: unless-stopped
@@ -37,8 +82,12 @@ services:
       - PORT=3002
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - TASK_SQLITE_DB_LOCATION=/app/data/task-service.db
+      - RUN_MIGRATIONS_ON_STARTUP=false
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      task-migrate:
+        condition: service_completed_successfully
     volumes:
       - task-data:/app/data
     restart: unless-stopped
@@ -49,8 +98,12 @@ services:
       - PORT=3003
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - NOTIFICATION_SQLITE_DB_LOCATION=/app/data/notification-service.db
+      - RUN_MIGRATIONS_ON_STARTUP=false
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      notification-migrate:
+        condition: service_completed_successfully
     volumes:
       - notification-data:/app/data
     restart: unless-stopped
@@ -61,8 +114,12 @@ services:
       - PORT=3004
       - SESSION_SECRET=${SESSION_SECRET:-prod-secret-change-me}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - RUN_MIGRATIONS_ON_STARTUP=false
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      auth-migrate:
+        condition: service_completed_successfully
     volumes:
       - auth-data:/app/data
     restart: unless-stopped
