@@ -18,3 +18,8 @@ node_modules/
 storageState.json
 
 /data/
+
+# Contract testing (Pact) — contrats et logs générés
+/pacts/
+/logs/
+**/pact/logs/

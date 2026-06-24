@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "node -r ts-node/register src/server.ts",
-    "test": "cross-env NODE_ENV=test jest --passWithNoTests"
+    "test": "cross-env NODE_ENV=test jest --passWithNoTests",
+    "test:pact:consumer": "cross-env NODE_ENV=test jest -c jest.pact.config.ts"
   },
   "dependencies": {
     "express": "^5.2.1",
