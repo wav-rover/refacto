@@ -124,7 +124,12 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
    - pour chaque service (`auth-service` → `project-service` → `task-service` → `notification-service` → `api-gateway` → `frontend`) : `pull` + `up -d --no-deps` + vérif `running` ;
    - smoke check HTTP sur `http://127.0.0.1:3000` (`curl` ou `wget`) ;
    - pas de double stack blue/green (VM unique, compose unique).
-6. **Rollback** : non implémenté (étape 9 CD) — un échec de rollout bloque le pipeline.
+6. **Rollback production** (SSH, étape 9 CD) :
+   - avant les migrations : snapshot de `~/refacto/manifest.deployed.json` sur la VM (artefact `prod-rollback-manifest`, repli git si absent) ;
+   - si `migrate-production` ou `deploy-production` échoue : job `rollback-production` redéploie les images précédentes (rolling restart, sans rejeu des `*-migrate`) ;
+   - après un deploy réussi : `deploy/manifest.json` est copié vers `manifest.deployed.json` sur la VM ;
+   - **limitation** : migrations SQLite forward-only — le rollback remet les images applicatives, pas le schéma BDD.
+7. Le workflow global reste **en échec** même si le rollback réussit.
 
 **Secrets GitHub requis (intégration)** :
 
@@ -167,5 +172,6 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | — | Déploiement SSH intégration | #5 |
 | — | Migrations BDD production (job dédié) | #5 |
 | — | Rollout SSH production (service par service) | #5 |
+| — | Rollback SSH production | #5 |
 
 

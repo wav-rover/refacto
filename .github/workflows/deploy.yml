@@ -173,8 +173,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Job 3 — migrate-production : migrations BDD en premier (CD étape 7).
-  # Job dédié : pull + exécution des conteneurs *-migrate uniquement.
-  # Aucun redémarrage des services applicatifs (étape 8).
+  # Snapshot manifest.deployed.json avant toute modification (étape 9 rollback).
   # ---------------------------------------------------------------------------
   migrate-production:
     needs: manual-gate
@@ -189,6 +188,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Lire le manifeste et exporter les versions
         run: |
@@ -215,6 +215,25 @@ jobs:
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/deploy_key
+
+      - name: Snapshot manifeste déployé (rollback)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" \
+            "cat ~/refacto/manifest.deployed.json 2>/dev/null || true" \
+            > prod-rollback-manifest.json
+          node deploy/resolve-rollback-manifest.mjs prod-rollback-manifest.json
+
+      - name: Publier le snapshot rollback (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-rollback-manifest
+          path: prod-rollback-manifest.json
+          retention-days: 7
 
       - name: Copier docker-compose sur la VM
         env:
@@ -256,9 +275,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Job 4 — deploy-production : rollout applicatif réel (CD étape 8).
-  # Rolling restart séquentiel : pull + up --no-deps par service.
-  # Les migrations ont déjà été jouées par migrate-production (étape 7).
-  # Échec d'un service = pipeline bloqué (rollback = étape 9).
+  # Enregistre manifest.deployed.json sur la VM en cas de succès (étape 9).
   # ---------------------------------------------------------------------------
   deploy-production:
     needs: migrate-production
@@ -355,5 +372,113 @@ jobs:
           fi
 
           echo "=== Stack production opérationnelle ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
+
+      - name: Enregistrer le manifeste déployé sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          scp -o BatchMode=yes deploy/manifest.json \
+            "${SSH_TARGET}:~/refacto/manifest.deployed.json"
+
+  # ---------------------------------------------------------------------------
+  # Job 5 — rollback-production : bascule images précédentes (CD étape 9).
+  # Déclenché si migrate-production ou deploy-production échoue.
+  # Le workflow global reste en échec même si le rollback réussit.
+  # ---------------------------------------------------------------------------
+  rollback-production:
+    needs: [migrate-production, deploy-production]
+    if: >-
+      always() &&
+      (needs.migrate-production.result == 'failure' ||
+       needs.deploy-production.result == 'failure')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Télécharger le snapshot rollback
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-rollback-manifest
+          path: .
+
+      - name: Résoudre les versions de rollback
+        id: rollback
+        run: node deploy/resolve-rollback-manifest.mjs prod-rollback-manifest.json
+
+      - name: Setup SSH
+        if: steps.rollback.outputs.has_rollback == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Rollback production (SSH)
+        if: steps.rollback.outputs.has_rollback == 'true'
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull redis \\
+            auth-service project-service task-service notification-service api-gateway frontend
+          docker compose -f ${COMPOSE_FILE} up -d redis
+
+          for svc in auth-service project-service task-service notification-service api-gateway frontend; do
+            echo "=== Rollback: \$svc ==="
+            docker compose -f ${COMPOSE_FILE} pull "\$svc"
+            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré après rollback : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
+
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsS --max-time 10 http://127.0.0.1:3000/ >/dev/null
+          elif command -v wget >/dev/null 2>&1; then
+            wget -q --spider --timeout=10 http://127.0.0.1:3000/
+          fi
+
+          echo "=== Rollback production terminé ==="
           docker compose -f ${COMPOSE_FILE} ps
           EOF
