@@ -14,6 +14,7 @@
     "dev:no-watch": "node -r dotenv/config -r ts-node/register src/index.ts",
     "test": "npm run test:services",
     "test:e2e": "playwright test",
+    "test:e2e:integration": "playwright test -c playwright.integration.config.ts",
     "test:all": "npm run test && npm run test:e2e",
     "test:services": "npm run test --workspaces --if-present",
     "test:pact:consumer": "npm run test:pact:consumer -w api-gateway && cross-env NODE_ENV=test jest -c jest.pact.config.ts",

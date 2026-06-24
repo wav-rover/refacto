@@ -34,9 +34,13 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 5. **Build du frontend** — uniquement si le front a changé.
 6. **Tests unitaires** (Jest) **ciblés sur les services modifiés**, avec couverture.
 7. Vérification des **Dockerfiles touchés** (Hadolint) et **validation de la configuration docker compose**.
-8. **Audit des dépendances** (mode informatif).
+8. **Build local + scan Trivy** (bloquant) sur les Dockerfiles modifiés — sans push vers GHCR.
+9. **Tests d'intégration hybrides** (si un service, le front ou un fichier global a changé) : les services modifiés sont buildés localement, les autres sont tirés de GHCR aux versions du [`manifeste de déploiement`](../../deploy/manifest.json), puis la suite E2E Playwright tourne sur la stack complète (`docker-compose.prod.yml`). Skippé sur les PR depuis un fork.
+10. **Audit des dépendances** (mode informatif).
 
 > Garde-fou : si un fichier « global » a changé, l'étape de tests/lint bascule sur **tous** les services (full build), pour ne rien laisser passer.
+
+> *Carte Trello « Gestion des versions pour la CD » — étape 1 (PR) : tests d'intégration avec images stables des autres services.*
 
 ---
 
@@ -99,7 +103,8 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | 37 | Tests unitaires + couverture | #1 (ciblé), #2 et #4 (tous) |
 | 38 | Hadolint (lint Dockerfiles) | #1 |
 | 39 | CodeQL + SonarQube | #2 |
-| 40 | Trivy (scan images) | #3 (bloquant), #4 (approfondi) |
+| 40 | Trivy (scan images) | #1 (PR, bloquant), #3 (bloquant), #4 (approfondi) |
+| — | Tests d'intégration hybrides (manifeste GHCR) | #1 |
 | 41 | npm audit + `docker compose config` | #1 (audit informatif, validation compose), #2 (audit bloquant), #4 (audit complet) |
 | — | license-checker (licences des dépendances) | #2 (bloquant), #4 (contrôle approfondi) |
 | 42 | Traçabilité des résultats (GitHub Security, artefacts) | #2 (et #4 pour les rapports) |
