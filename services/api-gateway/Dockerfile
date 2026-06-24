@@ -34,6 +34,14 @@ RUN apk upgrade --no-cache \
 
 COPY --from=builder /app/services/api-gateway/dist ./dist
 
+# Métadonnées de compatibilité (vérifiées au déploiement par deploy/check-compatibility.mjs).
+# La gateway expose l'API v1 et appelle les 4 backends : elle exige leur major 1.x.
+LABEL provides.api-version="v1"
+LABEL requires.auth-service=">=1.0.0 <2.0.0"
+LABEL requires.project-service=">=1.0.0 <2.0.0"
+LABEL requires.task-service=">=1.0.0 <2.0.0"
+LABEL requires.notification-service=">=1.0.0 <2.0.0"
+
 EXPOSE 3000
 
 CMD ["node", "dist/server.js"]
