@@ -92,11 +92,78 @@ jobs:
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
   # -------------------------------------------------------------------------
+  # CD étape 3 — intégration : build local des 6 images (tags SemVer) + E2E.
+  # Valide la combinaison complète AVANT push GHCR. Bash inline (pas de script).
+  # -------------------------------------------------------------------------
+  integration:
+    needs: bump-version
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.bump-version.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (commit de bump)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build des 6 images release (tags SemVer)
+        run: |
+          set -euo pipefail
+          REGISTRY=ghcr.io/wav-rover
+
+          build_one() {
+            local image=$1 dockerfile=$2 pkg_path=$3 env_key=$4
+            local version
+            version=$(node -p "require('./${pkg_path}').version")
+            echo "Build ${REGISTRY}/${image}:${version}"
+            docker build -t "${REGISTRY}/${image}:${version}" -f "${dockerfile}" .
+            echo "${env_key}=${version}" >> "$GITHUB_ENV"
+          }
+
+          build_one auth-service         services/auth-service/Dockerfile         services/auth-service/package.json         AUTH_SERVICE_VERSION
+          build_one project-service      services/project-service/Dockerfile      services/project-service/package.json      PROJECT_SERVICE_VERSION
+          build_one task-service         services/task-service/Dockerfile         services/task-service/package.json         TASK_SERVICE_VERSION
+          build_one notification-service services/notification-service/Dockerfile services/notification-service/package.json NOTIFICATION_SERVICE_VERSION
+          build_one api-gateway          services/api-gateway/Dockerfile          services/api-gateway/package.json          API_GATEWAY_VERSION
+          build_one frontend             Dockerfile.frontend                    package.json                               FRONTEND_VERSION
+
+      - name: Migrations (conteneurs one-shot)
+        run: |
+          docker compose -f docker-compose.prod.yml up --no-deps \
+            auth-migrate project-migrate task-migrate notification-migrate
+
+      - name: Démarrer la stack
+        run: docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+      - name: Tests d'intégration (Playwright)
+        run: npm run test:e2e:integration
+
+      - name: Arrêter la stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
+
+  # -------------------------------------------------------------------------
   # Publication des 6 images (CD étape 2 : bump + build + tags sha / X.Y.Z).
   # Skippé si aucun service n'a changé depuis le manifeste (hors bootstrap).
   # -------------------------------------------------------------------------
   publish:
-    needs: bump-version
+    needs: [bump-version, integration]
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       needs.bump-version.outputs.has_changes == 'true'

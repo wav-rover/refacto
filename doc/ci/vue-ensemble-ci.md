@@ -70,15 +70,16 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 
 **Ce qui se lance, dans l'ordre :**
 1. **Bump SemVer** (patch) des services modifiés depuis le dernier manifeste — skip publication si rien n'a changé.
-2. Récupération du code (commit de bump).
-3. Préparation de l'outil de build d'images (Buildx).
-4. **Construction multi-architecture** des 6 images (**`linux/amd64` + `linux/arm64`**) avec tags `sha` court et `X.Y.Z`.
-5. **Scan de sécurité des images** (Trivy) — bloque en cas de vulnérabilité haute/critique.
-6. **Connexion à la registry** (GHCR) et **publication** des images.
-7. **Mise à jour** de [`deploy/manifest.json`](../../deploy/manifest.json) (commit auto).
-8. Publication des rapports de scan.
+2. **Tests d'intégration release** : build local des 6 images taguées `X.Y.Z`, stack `docker-compose.prod.yml`, E2E Playwright — bloquant avant tout push.
+3. Récupération du code (commit de bump).
+4. Préparation de l'outil de build d'images (Buildx).
+5. **Construction multi-architecture** des 6 images (**`linux/amd64` + `linux/arm64`**) avec tags `sha` court et `X.Y.Z`.
+6. **Scan de sécurité des images** (Trivy) — bloque en cas de vulnérabilité haute/critique.
+7. **Connexion à la registry** (GHCR) et **publication** des images.
+8. **Mise à jour** de [`deploy/manifest.json`](../../deploy/manifest.json) (commit auto).
+9. Publication des rapports de scan.
 
-> *Carte Trello « Gestion des versions pour la CD » — étape 2 (merge `main`) : build + tags `sha` / `X.Y.Z`.*
+> *Carte Trello « Gestion des versions pour la CD » — étape 2 : build + tags `sha` / `X.Y.Z` ; étape 3 : intégration sur la combinaison complète des nouvelles images.*
 
 ---
 
