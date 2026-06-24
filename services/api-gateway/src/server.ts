@@ -4,6 +4,8 @@ import { apiRouter } from "./routes";
 import { cors } from "./middlewares/cors";
 import { logger } from "./middlewares/logger";
 import { requestId } from "./middlewares/requestId";
+import { getApiVersion } from "./config/apiVersion";
+import { buildOpenApiDocument } from "./openapi";
 
 export function createApp(): Application {
   const app = express();
@@ -16,6 +18,13 @@ export function createApp(): Application {
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });
+
+  // Documentation OpenAPI exposée uniquement en développement.
+  if (process.env.NODE_ENV !== "production") {
+    app.get(`/api/${getApiVersion()}/openapi.json`, (_req, res) => {
+      res.status(200).json(buildOpenApiDocument());
+    });
+  }
 
   app.use("/api", apiRouter);
 

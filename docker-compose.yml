@@ -72,6 +72,7 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     environment:
       - PORT=3000
+      - API_VERSION=v1
       - AUTH_SERVICE_URL=http://auth-service:3004
       - PROJECT_SERVICE_URL=http://project-service:3001
       - TASK_SERVICE_URL=http://task-service:3002

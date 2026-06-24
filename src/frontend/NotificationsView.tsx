@@ -30,7 +30,7 @@ function NotificationsView({ onAuthRequired }: NotificationsViewProps) {
   const loadNotifications = React.useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch(`${apiBaseUrl}/api/notifications`, { credentials: "include" })
+    fetch(`${apiBaseUrl}/api/v1/notifications`, { credentials: "include" })
       .then((r) => {
         if (r.status === 401) {
           onAuthRequired();

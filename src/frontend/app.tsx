@@ -20,7 +20,7 @@ function App() {
   >(null);
 
   React.useEffect(() => {
-    fetch(`${apiBaseUrl}/api/auth/me`, { credentials: "include" })
+    fetch(`${apiBaseUrl}/api/v1/auth/me`, { credentials: "include" })
       .then((r) => {
         if (r.status === 401) {
           setAuthState("logged_out");
@@ -35,7 +35,7 @@ function App() {
 
   const handleLogin = (email: string, password: string) => {
     setAuthError(null);
-    fetch(`${apiBaseUrl}/api/auth/login`, {
+    fetch(`${apiBaseUrl}/api/v1/auth/login`, {
       method: "POST",
       body: JSON.stringify({ email, password }),
       headers: { "Content-Type": "application/json" },
@@ -53,7 +53,7 @@ function App() {
 
   const handleRegister = (email: string, password: string) => {
     setAuthError(null);
-    fetch(`${apiBaseUrl}/api/auth/register`, {
+    fetch(`${apiBaseUrl}/api/v1/auth/register`, {
       method: "POST",
       body: JSON.stringify({ email, password }),
       headers: { "Content-Type": "application/json" },
@@ -73,7 +73,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    fetch(`${apiBaseUrl}/api/auth/logout`, {
+    fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
       method: "POST",
       credentials: "include",
     })

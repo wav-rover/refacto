@@ -23,7 +23,10 @@ app.get('/', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-mountTaskRoutes(app, repo, eventBus);
+// Routes métier exposées sous /v1 (versionnage d'API).
+const v1 = express.Router();
+mountTaskRoutes(v1, repo, eventBus);
+app.use('/v1', v1);
 
 repo
   .init()

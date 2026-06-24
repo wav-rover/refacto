@@ -1,3 +1,5 @@
+import { getApiVersion } from "./apiVersion";
+
 const NOTIFICATION_SERVICE_URL_ENV_KEY = "NOTIFICATION_SERVICE_URL";
 
 export function getNotificationServiceUrl(): string {
@@ -9,5 +11,6 @@ export function getNotificationServiceUrl(): string {
     );
   }
 
-  return url;
+  // Préfixe de version (ex. ".../v1") propagé à tous les appels du service.
+  return `${url.replace(/\/$/, "")}/${getApiVersion()}`;
 }
