@@ -172,11 +172,95 @@ jobs:
           echo "Intégration approuvée — passage en production autorisé."
 
   # ---------------------------------------------------------------------------
-  # Job 3 — deploy-production : déploiement en production après approbation.
-  # Même mécanique que deploy-integration, environment 'production' requis.
+  # Job 3 — migrate-production : migrations BDD en premier (CD étape 7).
+  # Job dédié : pull + exécution des conteneurs *-migrate uniquement.
+  # Aucun redémarrage des services applicatifs (étape 8).
+  # ---------------------------------------------------------------------------
+  migrate-production:
+    needs: manual-gate
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Lire le manifeste et exporter les versions
+        run: |
+          node - <<'EOF'
+          const m = require('./deploy/manifest.json');
+          const lines = Object.entries(m.services)
+            .map(([s, v]) => `${s.toUpperCase().replace(/-/g, '_')}_VERSION=${v}`)
+            .join('\n');
+          require('fs').appendFileSync(process.env.GITHUB_ENV, lines + '\n');
+          console.log('=== Manifeste de déploiement ===');
+          console.log(JSON.stringify(m, null, 2));
+          EOF
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Migrations production (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          echo "=== Migrations production terminées ==="
+          EOF
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — deploy-production : rollout applicatif (CD étape 8 — à implémenter).
+  # Simulation du redémarrage service par service ; les migrations sont déjà
+  # exécutées par migrate-production (étape 7).
   # ---------------------------------------------------------------------------
   deploy-production:
-    needs: manual-gate
+    needs: migrate-production
     runs-on: ubuntu-latest
     environment: production
 
@@ -198,15 +282,17 @@ jobs:
           console.log(JSON.stringify(m, null, 2));
           EOF
 
-      # En cas d'échec : rollback vers les images précédentes du manifeste.
-      # Simulation du rollout service par service (canary / blue-green).
-      - name: Déploiement production (simulation)
+      # CD étape 8 — rollout service par service (canary / blue-green).
+      # Les migrations ont déjà été jouées par migrate-production (étape 7).
+      - name: Déploiement production (simulation — étape 8)
         run: |
           echo "=========================================="
-          echo "  DÉPLOIEMENT PRODUCTION"
+          echo "  DÉPLOIEMENT PRODUCTION (rollout)"
           echo "=========================================="
           echo ""
-          echo "Images déployées depuis GHCR :"
+          echo "Migrations déjà exécutées par migrate-production."
+          echo ""
+          echo "Images à déployer depuis GHCR :"
           echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
           echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
           echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
@@ -214,23 +300,14 @@ jobs:
           echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
           echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
           echo ""
-          echo "Ordre de déploiement (rollout service par service) :"
-          echo "  1. Migrations BDD via conteneurs dédiés (one-shot, *-migrate)"
-          echo "  2. auth-service    → redémarrage"
-          echo "  3. project-service → redémarrage"
-          echo "  4. task-service    → redémarrage"
-          echo "  5. notification-service → redémarrage"
-          echo "  6. api-gateway     → redémarrage"
-          echo "  7. frontend        → redémarrage"
+          echo "Ordre de rollout (étape 8 — à implémenter) :"
+          echo "  1. auth-service    → redémarrage"
+          echo "  2. project-service → redémarrage"
+          echo "  3. task-service    → redémarrage"
+          echo "  4. notification-service → redémarrage"
+          echo "  5. api-gateway     → redémarrage"
+          echo "  6. frontend        → redémarrage"
           echo ""
-          echo "Commandes équivalentes sur le serveur de production :"
-          echo "  docker compose -f docker-compose.prod.yml pull"
-          echo "  # Migrations d'abord (les services applicatifs en dépendent via"
-          echo "  # depends_on: service_completed_successfully) :"
-          echo "  docker compose -f docker-compose.prod.yml up --no-deps \\"
-          echo "    auth-migrate project-migrate task-migrate notification-migrate"
-          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
+          echo "En cas d'échec → rollback vers les versions précédentes (étape 9)."
           echo ""
-          echo "En cas d'échec → rollback vers les versions précédentes du manifeste."
-          echo ""
-          echo "=== Stack production opérationnelle ==="
+          echo "=== Simulation rollout production ==="

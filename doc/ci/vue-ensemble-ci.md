@@ -112,7 +112,14 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
    - `docker login ghcr.io`, `pull`, migrations one-shot (`*-migrate`), puis `up -d` ;
    - contrôle que les services applicatifs + Redis sont bien `running`.
 3. **Gate manuelle** : approbation requise (environment GitHub `production` avec reviewer(s)) avant toute mise en production.
-4. **Déploiement production** : simulation pour l'instant (étapes 7–9 CD à venir).
+4. **Migrations production** (SSH, job dédié — étape 7 CD) :
+   - connexion SSH vers la VM de production (`~/refacto`) ;
+   - copie de `docker-compose.prod.yml` ;
+   - `docker login ghcr.io`, `pull` des images `*-migrate` uniquement ;
+   - exécution des conteneurs one-shot `auth-migrate`, `project-migrate`, `task-migrate`, `notification-migrate` ;
+   - **aucun** redémarrage des services applicatifs à cette étape.
+5. **Rollout production** : simulation pour l'instant (étape 8 CD — redémarrage service par service).
+6. **Rollback** : non implémenté (étape 9 CD).
 
 **Secrets GitHub requis (intégration)** :
 
@@ -124,6 +131,15 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 | `GITHUB_TOKEN` | Authentification GHCR sur la VM (fourni par Actions) |
 
 **Prérequis VM** : Docker + plugin Compose installés, utilisateur dans le groupe `docker`, répertoire `~/refacto` accessible en écriture. L'environment GitHub `integration` ne doit **pas** avoir de reviewers (déploiement automatique).
+
+**Secrets GitHub requis (production)** :
+
+| Secret | Rôle |
+|---|---|
+| `SSH_PRIVATE_KEY_PROD` | Clé privée SSH (sans passphrase) |
+| `VM_HOST_PROD` | Hôte de la VM |
+| `VM_USER_PROD` | Utilisateur SSH |
+| `GITHUB_TOKEN` | Authentification GHCR sur la VM (fourni par Actions) |
 
 ---
 
@@ -144,5 +160,6 @@ Plusieurs cartes Trello ne sont pas des pipelines mais des **outils** intégrés
 | 43 | Registry privée des images | #3 |
 | — | Compatibilité semver manifeste ↔ labels GHCR | #5 |
 | — | Déploiement SSH intégration | #5 |
+| — | Migrations BDD production (job dédié) | #5 |
 
 
