@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "dev": "node -r ts-node/register src/index.ts",
     "migrate": "node dist/migrate.js",
-    "test": "cross-env NODE_ENV=test jest"
+    "test": "cross-env NODE_ENV=test jest",
+    "test:pact:provider": "cross-env NODE_ENV=test TS_NODE_TRANSPILE_ONLY=1 ts-node contract/verify.ts"
   },
   "dependencies": {
     "express": "^5.2.1",

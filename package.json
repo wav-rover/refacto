@@ -16,6 +16,9 @@
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
     "test:services": "npm run test --workspaces --if-present",
+    "test:pact:consumer": "npm run test:pact:consumer -w api-gateway && cross-env NODE_ENV=test jest -c jest.pact.config.ts",
+    "test:pact:provider": "npm run test:pact:provider -w auth-service && npm run test:pact:provider -w project-service && npm run test:pact:provider -w task-service && npm run test:pact:provider -w notification-service && cross-env NODE_ENV=test TS_NODE_TRANSPILE_ONLY=1 ts-node services/api-gateway/contract/frontend-provider.verify.ts",
+    "test:pact": "npm run test:pact:consumer && npm run test:pact:provider",
     "lint": "eslint src services/*/src",
     "lint:deps": "npx dependency-cruiser src services/*/src --config",
     "build:front": "esbuild src/frontend/app.tsx --bundle --minify --outfile=src/static/js/app.js --loader:.tsx=tsx --loader:.ts=ts"
@@ -33,6 +36,7 @@
     "wait-port": "^1.1.0"
   },
   "devDependencies": {
+    "@pact-foundation/pact": "^16.5.0",
     "@playwright/test": "^1.58.2",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.18.2",
@@ -52,10 +56,10 @@
     "jest-util": "^30.0.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.8.1",
+    "supertest": "^7.0.0",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "supertest": "^7.0.0"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "@isaacs/brace-expansion": "5.0.1",
