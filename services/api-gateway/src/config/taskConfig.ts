@@ -1,3 +1,5 @@
+import { getApiVersion } from "./apiVersion";
+
 const TASK_SERVICE_URL_ENV_KEY = "TASK_SERVICE_URL";
 
 export function getTaskServiceUrl(): string {
@@ -9,5 +11,6 @@ export function getTaskServiceUrl(): string {
     );
   }
 
-  return url;
+  // Préfixe de version (ex. ".../v1") propagé à tous les appels du service.
+  return `${url.replace(/\/$/, "")}/${getApiVersion()}`;
 }

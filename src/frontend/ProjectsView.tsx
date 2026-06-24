@@ -42,7 +42,7 @@ function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
 
   const fetchProjects = React.useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/projects`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/projects`, {
         credentials: "include",
       });
 
@@ -79,7 +79,7 @@ function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
     setCreating(true);
     setError(null);
 
-    fetch(`${apiBaseUrl}/api/projects`, {
+    fetch(`${apiBaseUrl}/api/v1/projects`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -119,7 +119,7 @@ function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
     setClosingProjectId(projectId);
     setError(null);
 
-    fetch(`${apiBaseUrl}/api/projects/${projectId}/close`, {
+    fetch(`${apiBaseUrl}/api/v1/projects/${projectId}/close`, {
       method: "POST",
       credentials: "include",
     })
@@ -162,7 +162,7 @@ function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
     setUpdatingMembersProjectId(projectId);
     setError(null);
 
-    fetch(`${apiBaseUrl}/api/projects/${projectId}/members`, {
+    fetch(`${apiBaseUrl}/api/v1/projects/${projectId}/members`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -213,7 +213,7 @@ function ProjectsView({ onAuthRequired, onViewTasks }: ProjectsViewProps) {
 
     const encodedMemberIdentifier = encodeURIComponent(memberIdentifier);
     fetch(
-      `${apiBaseUrl}/api/projects/${projectId}/members/${encodedMemberIdentifier}`,
+      `${apiBaseUrl}/api/v1/projects/${projectId}/members/${encodedMemberIdentifier}`,
       {
         method: "DELETE",
         credentials: "include",

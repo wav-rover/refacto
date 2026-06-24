@@ -1,3 +1,5 @@
+import { getApiVersion } from "./apiVersion";
+
 const PROJECT_SERVICE_URL_ENV_KEY = "PROJECT_SERVICE_URL";
 
 export function getProjectServiceUrl(): string {
@@ -9,5 +11,6 @@ export function getProjectServiceUrl(): string {
     );
   }
 
-  return url;
+  // Préfixe de version (ex. ".../v1") propagé à tous les appels du service.
+  return `${url.replace(/\/$/, "")}/${getApiVersion()}`;
 }

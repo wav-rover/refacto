@@ -33,10 +33,13 @@ app.get("/", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.post("/auth/register", register(repo));
-app.post("/auth/login", login(repo));
-app.post("/auth/logout", logout);
-app.get("/auth/me", requireAuth, me);
+// Routes d'authentification exposées sous /v1 (versionnage d'API).
+const v1 = express.Router();
+v1.post("/auth/register", register(repo));
+v1.post("/auth/login", login(repo));
+v1.post("/auth/logout", logout);
+v1.get("/auth/me", requireAuth, me);
+app.use("/v1", v1);
 
 repo
   .init()

@@ -32,7 +32,7 @@ function codeToStatus(code: string): number {
 }
 
 export function mountTaskRoutes(
-  app: import('express').Express,
+  app: import('express').Router,
   repo: TaskRepository,
   eventBus: EventBus,
 ): void {

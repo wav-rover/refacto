@@ -3,7 +3,7 @@ import type { NotificationRepository } from '../ports/notificationRepository';
 import { requireCurrentUser } from '../middleware/currentUser';
 
 export function mountNotificationRoutes(
-  app: import('express').Express,
+  app: import('express').Router,
   repo: NotificationRepository,
 ): void {
   app.get(

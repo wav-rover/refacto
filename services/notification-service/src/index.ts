@@ -29,7 +29,10 @@ app.get("/", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-mountNotificationRoutes(app, repo);
+// Routes métier exposées sous /v1 (versionnage d'API).
+const v1 = express.Router();
+mountNotificationRoutes(v1, repo);
+app.use("/v1", v1);
 
 repo
   .init()

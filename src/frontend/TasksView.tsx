@@ -33,7 +33,7 @@ function TasksView({ onAuthRequired, initialProjectId }: TasksViewProps) {
       setError(null);
       setLoading(true);
       setTasks(null);
-      fetch(`${apiBaseUrl}/api/tasks/project/${encodeURIComponent(id)}`, {
+      fetch(`${apiBaseUrl}/api/v1/tasks/project/${encodeURIComponent(id)}`, {
         credentials: "include",
       })
         .then((r) => {
@@ -137,7 +137,7 @@ function TasksView({ onAuthRequired, initialProjectId }: TasksViewProps) {
       (form.elements.namedItem("task-status") as HTMLSelectElement)?.value ??
       "todo";
     setError(null);
-    callTaskAction("POST", "/api/tasks", {
+    callTaskAction("POST", "/api/v1/tasks", {
       title,
       projectId: id,
       priority,
@@ -153,13 +153,13 @@ function TasksView({ onAuthRequired, initialProjectId }: TasksViewProps) {
       setError("Saisir un userId pour assigner.");
       return;
     }
-    callTaskAction("POST", `/api/tasks/${taskId}/assign`, { userId })
+    callTaskAction("POST", `/api/v1/tasks/${taskId}/assign`, { userId })
       .then(() => loadTasks())
       .catch(() => {});
   };
 
   const handleUnassign = (taskId: string) => {
-    callTaskAction("POST", `/api/tasks/${taskId}/unassign`, {})
+    callTaskAction("POST", `/api/v1/tasks/${taskId}/unassign`, {})
       .then(() => loadTasks())
       .catch(() => {});
   };
@@ -173,26 +173,26 @@ function TasksView({ onAuthRequired, initialProjectId }: TasksViewProps) {
       dueDate: string | null;
     }
   ) => {
-    callTaskAction("PATCH", `/api/tasks/${taskId}`, updates)
+    callTaskAction("PATCH", `/api/v1/tasks/${taskId}`, updates)
       .then(() => loadTasks())
       .catch(() => {});
   };
 
   const handleComplete = (taskId: string) => {
-    callTaskAction("POST", `/api/tasks/${taskId}/complete`, {})
+    callTaskAction("POST", `/api/v1/tasks/${taskId}/complete`, {})
       .then(() => loadTasks())
       .catch(() => {});
   };
 
   const handleReopen = (taskId: string) => {
-    callTaskAction("POST", `/api/tasks/${taskId}/reopen`, {})
+    callTaskAction("POST", `/api/v1/tasks/${taskId}/reopen`, {})
       .then(() => loadTasks())
       .catch(() => {});
   };
 
   const handleDelete = (taskId: string) => {
     if (!window.confirm("Supprimer cette tâche ?")) return;
-    callTaskAction("DELETE", `/api/tasks/${taskId}`)
+    callTaskAction("DELETE", `/api/v1/tasks/${taskId}`)
       .then(() => loadTasks())
       .catch(() => {});
   };
