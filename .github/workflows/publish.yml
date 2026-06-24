@@ -29,8 +29,9 @@ jobs:
     permissions:
       contents: write # commit du bump sur main
     outputs:
-      # SHA à builder/tagger par le job publish (commit de bump, ou HEAD si rien à bumper).
       sha: ${{ steps.bump.outputs.sha }}
+      # true → lancer publish ; false → rien n'a changé depuis le manifeste.
+      has_changes: ${{ steps.bump.outputs.has_changes }}
     steps:
       - name: Checkout main (historique complet pour le diff)
         uses: actions/checkout@v4
@@ -43,7 +44,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Détecte les services touchés depuis le commit du manifeste et bump leur patch.
+      # Bump patch des services modifiés (depuis le commit du manifeste).
       # npm version --no-git-tag-version édite seulement le package.json (pas de tag git).
       - name: Bump patch des services modifiés
         id: bump
@@ -52,10 +53,11 @@ jobs:
           BASE=$(node -p "require('./deploy/manifest.json').commit")
           echo "Borne basse (commit du manifeste) : $BASE"
 
-          # Premier run / commit inconnu -> aucun bump (la base sera fixée par update-manifest).
+          # Premier run / commit inconnu → publish bootstrap (sans bump).
           if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            echo "Commit de base introuvable -> aucun bump."
+            echo "Commit de base introuvable -> bootstrap."
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -68,7 +70,6 @@ jobs:
             fi
           done
 
-          # Frontend : version portée par le package.json racine, détecté sur ses chemins propres.
           if [ -n "$(git diff --name-only "$BASE" HEAD -- src/frontend src/static Dockerfile.frontend tsconfig.frontend.json tsconfig.client.json)" ]; then
             echo "Frontend modifié -> bump patch (racine)"
             npm version patch --no-git-tag-version
@@ -76,8 +77,9 @@ jobs:
           fi
 
           if [ "$BUMPED" -eq 0 ]; then
-            echo "Aucun service modifié depuis le manifeste -> pas de commit."
+            echo "Aucun service modifié depuis le manifeste -> pas de publication."
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -87,14 +89,17 @@ jobs:
           git commit -m "chore: bump service versions [skip ci]"
           git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
   # -------------------------------------------------------------------------
-  # Publication matrixée des 6 images buildables (Redis = image externe, exclu).
-  # Stratégie scan-avant-push : build amd64 local → Trivy → build+push multi-arch.
+  # Publication des 6 images (CD étape 2 : bump + build + tags sha / X.Y.Z).
+  # Skippé si aucun service n'a changé depuis le manifeste (hors bootstrap).
   # -------------------------------------------------------------------------
   publish:
     needs: bump-version
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.bump-version.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     # Multi-arch + push GHCR : jusqu'à ~20 min/image ; retries possibles sur 502 transitoire.
     timeout-minutes: 120
@@ -160,8 +165,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Tags d'image : latest + SHA court + SemVer complet depuis package.json.
-      #    Produit 5 tags : latest, sha-<court>, X.Y.Z, X.Y, X.
+      # 5. Tags : latest + SHA court + SemVer (X.Y.Z, X.Y, X) depuis package.json.
       - name: Métadonnées / tags
         id: meta
         uses: docker/metadata-action@v5

@@ -69,13 +69,16 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 **Quand** : automatiquement, **une fois la CI #2 (Qualité & sécurité) passée au vert sur `main`**. On ne publie jamais une image non validée.
 
 **Ce qui se lance, dans l'ordre :**
-1. Récupération du code.
-2. Préparation de l'outil de build d'images (Buildx).
-3. **Construction multi-architecture** des images des services concernés (**`linux/amd64` + `linux/arm64`**, Buildx + manifeste unique par tag).
-4. **Scan de sécurité des images** (Trivy) — bloque en cas de vulnérabilité haute/critique.
-5. **Connexion à la registry** (GHCR) et **publication** des images.
-6. **Étiquetage** des images (`latest`, identifiant de commit, version sur release).
-7. Publication des rapports de scan.
+1. **Bump SemVer** (patch) des services modifiés depuis le dernier manifeste — skip publication si rien n'a changé.
+2. Récupération du code (commit de bump).
+3. Préparation de l'outil de build d'images (Buildx).
+4. **Construction multi-architecture** des 6 images (**`linux/amd64` + `linux/arm64`**) avec tags `sha` court et `X.Y.Z`.
+5. **Scan de sécurité des images** (Trivy) — bloque en cas de vulnérabilité haute/critique.
+6. **Connexion à la registry** (GHCR) et **publication** des images.
+7. **Mise à jour** de [`deploy/manifest.json`](../../deploy/manifest.json) (commit auto).
+8. Publication des rapports de scan.
+
+> *Carte Trello « Gestion des versions pour la CD » — étape 2 (merge `main`) : build + tags `sha` / `X.Y.Z`.*
 
 ---
 
