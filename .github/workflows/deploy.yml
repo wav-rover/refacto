@@ -126,11 +126,11 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
           ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
           export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
@@ -139,21 +139,21 @@ jobs:
           export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
 
           echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          docker compose -f ${COMPOSE_FILE} pull
-          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+          docker compose -f "\$COMPOSE_FILE" pull
+          docker compose -f "\$COMPOSE_FILE" up --no-deps \\
             auth-migrate project-migrate task-migrate notification-migrate
-          docker compose -f ${COMPOSE_FILE} up -d --remove-orphans
+          docker compose -f "\$COMPOSE_FILE" up -d --remove-orphans
 
           REQUIRED="frontend api-gateway auth-service project-service task-service notification-service redis"
           for svc in \$REQUIRED; do
-            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+            if ! docker compose -f "\$COMPOSE_FILE" ps --status running --services | grep -qx "\$svc"; then
               echo "Service non démarré : \$svc"
-              docker compose -f ${COMPOSE_FILE} ps
+              docker compose -f "\$COMPOSE_FILE" ps
               exit 1
             fi
           done
           echo "=== Stack intégration opérationnelle ==="
-          docker compose -f ${COMPOSE_FILE} ps
+          docker compose -f "\$COMPOSE_FILE" ps
           EOF
 
   # ---------------------------------------------------------------------------
@@ -254,11 +254,11 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
           ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
           export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
@@ -267,9 +267,9 @@ jobs:
           export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
 
           echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          docker compose -f ${COMPOSE_FILE} pull \\
+          docker compose -f "\$COMPOSE_FILE" pull \\
             auth-migrate project-migrate task-migrate notification-migrate
-          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+          docker compose -f "\$COMPOSE_FILE" up --no-deps \\
             auth-migrate project-migrate task-migrate notification-migrate
           echo "=== Migrations production terminées ==="
           EOF
