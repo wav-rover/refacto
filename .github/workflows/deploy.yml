@@ -336,11 +336,11 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
           ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
           export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
@@ -349,17 +349,17 @@ jobs:
           export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
 
           echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          docker compose -f ${COMPOSE_FILE} pull redis \\
+          docker compose -f "\$COMPOSE_FILE" pull redis \\
             auth-service project-service task-service notification-service api-gateway frontend
-          docker compose -f ${COMPOSE_FILE} up -d redis
+          docker compose -f "\$COMPOSE_FILE" up -d redis
 
           for svc in auth-service project-service task-service notification-service api-gateway frontend; do
             echo "=== Rollout: \$svc ==="
-            docker compose -f ${COMPOSE_FILE} pull "\$svc"
-            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
-            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+            docker compose -f "\$COMPOSE_FILE" pull "\$svc"
+            docker compose -f "\$COMPOSE_FILE" up -d --no-deps "\$svc"
+            if ! docker compose -f "\$COMPOSE_FILE" ps --status running --services | grep -qx "\$svc"; then
               echo "Service non démarré : \$svc"
-              docker compose -f ${COMPOSE_FILE} ps
+              docker compose -f "\$COMPOSE_FILE" ps
               exit 1
             fi
           done
@@ -373,7 +373,7 @@ jobs:
           fi
 
           echo "=== Stack production opérationnelle ==="
-          docker compose -f ${COMPOSE_FILE} ps
+          docker compose -f "\$COMPOSE_FILE" ps
           EOF
 
       - name: Enregistrer le manifeste déployé sur la VM
@@ -443,7 +443,6 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
           scp "${SSH_OPTS[@]}" docker-compose.prod.yml \
@@ -451,6 +450,7 @@ jobs:
 
           ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
           export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
@@ -459,17 +459,17 @@ jobs:
           export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
 
           echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          docker compose -f ${COMPOSE_FILE} pull redis \\
+          docker compose -f "\$COMPOSE_FILE" pull redis \\
             auth-service project-service task-service notification-service api-gateway frontend
-          docker compose -f ${COMPOSE_FILE} up -d redis
+          docker compose -f "\$COMPOSE_FILE" up -d redis
 
           for svc in auth-service project-service task-service notification-service api-gateway frontend; do
             echo "=== Rollback: \$svc ==="
-            docker compose -f ${COMPOSE_FILE} pull "\$svc"
-            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
-            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+            docker compose -f "\$COMPOSE_FILE" pull "\$svc"
+            docker compose -f "\$COMPOSE_FILE" up -d --no-deps "\$svc"
+            if ! docker compose -f "\$COMPOSE_FILE" ps --status running --services | grep -qx "\$svc"; then
               echo "Service non démarré après rollback : \$svc"
-              docker compose -f ${COMPOSE_FILE} ps
+              docker compose -f "\$COMPOSE_FILE" ps
               exit 1
             fi
           done
@@ -481,5 +481,5 @@ jobs:
           fi
 
           echo "=== Rollback production terminé ==="
-          docker compose -f ${COMPOSE_FILE} ps
+          docker compose -f "\$COMPOSE_FILE" ps
           EOF
