@@ -61,14 +61,18 @@ jobs:
         run: node deploy/check-compatibility.mjs
 
   # ---------------------------------------------------------------------------
-  # Job 1 — deploy-integration : déploiement automatique en intégration.
-  # Lit deploy/manifest.json, exporte les versions et simule le déploiement.
+  # Job 1 — deploy-integration : déploiement automatique en intégration (SSH).
+  # Lit deploy/manifest.json, copie docker-compose.prod.yml sur la VM INT
+  # et lance pull + migrations + up avec les versions du manifeste.
   # ---------------------------------------------------------------------------
   deploy-integration:
     needs: verify-compatibility
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: integration
+    permissions:
+      contents: read
+      packages: read # GITHUB_TOKEN → docker login GHCR sur la VM
 
     steps:
       - name: Checkout main (HEAD courant)
@@ -90,38 +94,77 @@ jobs:
           console.log(JSON.stringify(m, null, 2));
           EOF
 
-      # Simulation du déploiement en intégration.
-      # En production réelle : remplacer les echo par un SSH + docker compose pull/up.
-      - name: Déploiement intégration (simulation)
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_INT }}
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
         run: |
-          echo "=========================================="
-          echo "  DÉPLOIEMENT INTÉGRATION"
-          echo "=========================================="
-          echo ""
-          echo "Images déployées depuis GHCR :"
-          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
-          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
-          echo ""
-          echo "Commandes équivalentes sur le serveur d'intégration :"
-          echo "  docker compose -f docker-compose.prod.yml pull"
-          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
-          echo ""
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
+          VM_USER: ${{ secrets.VM_USER_INT }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Déploiement intégration (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_INT }}
+          VM_USER: ${{ secrets.VM_USER_INT }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull
+          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          docker compose -f ${COMPOSE_FILE} up -d --remove-orphans
+
+          REQUIRED="frontend api-gateway auth-service project-service task-service notification-service redis"
+          for svc in \$REQUIRED; do
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
           echo "=== Stack intégration opérationnelle ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
 
   # ---------------------------------------------------------------------------
   # Job 2 — manual-gate : bloque le pipeline jusqu'à approbation manuelle.
-  # L'environment 'integration' doit être configuré avec des required reviewers
-  # dans Settings → Environments → integration.
-  # GitHub envoie une notification ; le reviewer approuve dans l'UI Actions.
+  # Configurer des required reviewers sur l'environment « production »
+  # (Settings → Environments → production).
   # ---------------------------------------------------------------------------
   manual-gate:
     needs: deploy-integration
     runs-on: ubuntu-latest
-    environment: integration
+    environment: production
 
     steps:
       - name: Validation manuelle de l'intégration
@@ -129,13 +172,118 @@ jobs:
           echo "Intégration approuvée — passage en production autorisé."
 
   # ---------------------------------------------------------------------------
-  # Job 3 — deploy-production : déploiement en production après approbation.
-  # Même mécanique que deploy-integration, environment 'production' requis.
+  # Job 3 — migrate-production : migrations BDD en premier (CD étape 7).
+  # Snapshot manifest.deployed.json avant toute modification (étape 9 rollback).
   # ---------------------------------------------------------------------------
-  deploy-production:
+  migrate-production:
     needs: manual-gate
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Lire le manifeste et exporter les versions
+        run: |
+          node - <<'EOF'
+          const m = require('./deploy/manifest.json');
+          const lines = Object.entries(m.services)
+            .map(([s, v]) => `${s.toUpperCase().replace(/-/g, '_')}_VERSION=${v}`)
+            .join('\n');
+          require('fs').appendFileSync(process.env.GITHUB_ENV, lines + '\n');
+          console.log('=== Manifeste de déploiement ===');
+          console.log(JSON.stringify(m, null, 2));
+          EOF
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Snapshot manifeste déployé (rollback)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" \
+            "cat ~/refacto/manifest.deployed.json 2>/dev/null || true" \
+            > prod-rollback-manifest.json
+          node deploy/resolve-rollback-manifest.mjs prod-rollback-manifest.json
+
+      - name: Publier le snapshot rollback (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-rollback-manifest
+          path: prod-rollback-manifest.json
+          retention-days: 7
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Migrations production (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          docker compose -f ${COMPOSE_FILE} up --no-deps \\
+            auth-migrate project-migrate task-migrate notification-migrate
+          echo "=== Migrations production terminées ==="
+          EOF
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — deploy-production : rollout applicatif réel (CD étape 8).
+  # Enregistre manifest.deployed.json sur la VM en cas de succès (étape 9).
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    needs: migrate-production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout main (HEAD courant)
@@ -155,39 +303,182 @@ jobs:
           console.log(JSON.stringify(m, null, 2));
           EOF
 
-      # En cas d'échec : rollback vers les images précédentes du manifeste.
-      # Simulation du rollout service par service (canary / blue-green).
-      - name: Déploiement production (simulation)
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
         run: |
-          echo "=========================================="
-          echo "  DÉPLOIEMENT PRODUCTION"
-          echo "=========================================="
-          echo ""
-          echo "Images déployées depuis GHCR :"
-          echo "  ghcr.io/wav-rover/frontend:${FRONTEND_VERSION}"
-          echo "  ghcr.io/wav-rover/auth-service:${AUTH_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/project-service:${PROJECT_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/task-service:${TASK_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/notification-service:${NOTIFICATION_SERVICE_VERSION}"
-          echo "  ghcr.io/wav-rover/api-gateway:${API_GATEWAY_VERSION}"
-          echo ""
-          echo "Ordre de déploiement (rollout service par service) :"
-          echo "  1. Migrations BDD via conteneurs dédiés (one-shot, *-migrate)"
-          echo "  2. auth-service    → redémarrage"
-          echo "  3. project-service → redémarrage"
-          echo "  4. task-service    → redémarrage"
-          echo "  5. notification-service → redémarrage"
-          echo "  6. api-gateway     → redémarrage"
-          echo "  7. frontend        → redémarrage"
-          echo ""
-          echo "Commandes équivalentes sur le serveur de production :"
-          echo "  docker compose -f docker-compose.prod.yml pull"
-          echo "  # Migrations d'abord (les services applicatifs en dépendent via"
-          echo "  # depends_on: service_completed_successfully) :"
-          echo "  docker compose -f docker-compose.prod.yml up --no-deps \\"
-          echo "    auth-migrate project-migrate task-migrate notification-migrate"
-          echo "  docker compose -f docker-compose.prod.yml up -d --remove-orphans"
-          echo ""
-          echo "En cas d'échec → rollback vers les versions précédentes du manifeste."
-          echo ""
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Copier docker-compose sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+      - name: Rollout production (SSH)
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull redis \\
+            auth-service project-service task-service notification-service api-gateway frontend
+          docker compose -f ${COMPOSE_FILE} up -d redis
+
+          for svc in auth-service project-service task-service notification-service api-gateway frontend; do
+            echo "=== Rollout: \$svc ==="
+            docker compose -f ${COMPOSE_FILE} pull "\$svc"
+            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
+
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsS --max-time 10 http://127.0.0.1:3000/ >/dev/null
+          elif command -v wget >/dev/null 2>&1; then
+            wget -q --spider --timeout=10 http://127.0.0.1:3000/
+          else
+            echo "curl/wget absent — smoke HTTP ignoré"
+          fi
+
           echo "=== Stack production opérationnelle ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
+
+      - name: Enregistrer le manifeste déployé sur la VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          scp -o BatchMode=yes deploy/manifest.json \
+            "${SSH_TARGET}:~/refacto/manifest.deployed.json"
+
+  # ---------------------------------------------------------------------------
+  # Job 5 — rollback-production : bascule images précédentes (CD étape 9).
+  # Déclenché si migrate-production ou deploy-production échoue.
+  # Le workflow global reste en échec même si le rollback réussit.
+  # ---------------------------------------------------------------------------
+  rollback-production:
+    needs: [migrate-production, deploy-production]
+    if: >-
+      always() &&
+      (needs.migrate-production.result == 'failure' ||
+       needs.deploy-production.result == 'failure')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout main (HEAD courant)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Télécharger le snapshot rollback
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-rollback-manifest
+          path: .
+
+      - name: Résoudre les versions de rollback
+        id: rollback
+        run: node deploy/resolve-rollback-manifest.mjs prod-rollback-manifest.json
+
+      - name: Setup SSH
+        if: steps.rollback.outputs.has_rollback == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Rollback production (SSH)
+        if: steps.rollback.outputs.has_rollback == 'true'
+        env:
+          VM_HOST: ${{ secrets.VM_HOST_PROD }}
+          VM_USER: ${{ secrets.VM_USER_PROD }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SSH_TARGET="${VM_USER}@${VM_HOST}"
+          COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+
+          scp -o BatchMode=yes docker-compose.prod.yml \
+            "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
+
+          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          set -euo pipefail
+          export FRONTEND_VERSION='${FRONTEND_VERSION}'
+          export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
+          export PROJECT_SERVICE_VERSION='${PROJECT_SERVICE_VERSION}'
+          export TASK_SERVICE_VERSION='${TASK_SERVICE_VERSION}'
+          export NOTIFICATION_SERVICE_VERSION='${NOTIFICATION_SERVICE_VERSION}'
+          export API_GATEWAY_VERSION='${API_GATEWAY_VERSION}'
+
+          echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker compose -f ${COMPOSE_FILE} pull redis \\
+            auth-service project-service task-service notification-service api-gateway frontend
+          docker compose -f ${COMPOSE_FILE} up -d redis
+
+          for svc in auth-service project-service task-service notification-service api-gateway frontend; do
+            echo "=== Rollback: \$svc ==="
+            docker compose -f ${COMPOSE_FILE} pull "\$svc"
+            docker compose -f ${COMPOSE_FILE} up -d --no-deps "\$svc"
+            if ! docker compose -f ${COMPOSE_FILE} ps --status running --services | grep -qx "\$svc"; then
+              echo "Service non démarré après rollback : \$svc"
+              docker compose -f ${COMPOSE_FILE} ps
+              exit 1
+            fi
+          done
+
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsS --max-time 10 http://127.0.0.1:3000/ >/dev/null
+          elif command -v wget >/dev/null 2>&1; then
+            wget -q --spider --timeout=10 http://127.0.0.1:3000/
+          fi
+
+          echo "=== Rollback production terminé ==="
+          docker compose -f ${COMPOSE_FILE} ps
+          EOF
