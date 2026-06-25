@@ -105,8 +105,6 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/deploy_key
 
       - name: Copier docker-compose sur la VM
         env:
@@ -115,8 +113,9 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
-          scp -o BatchMode=yes docker-compose.prod.yml \
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp "${SSH_OPTS[@]}" docker-compose.prod.yml \
             "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
 
       - name: Déploiement intégration (SSH)
@@ -128,8 +127,9 @@ jobs:
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
           COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
-          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
@@ -213,8 +213,6 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/deploy_key
 
       - name: Snapshot manifeste déployé (rollback)
         env:
@@ -223,7 +221,8 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          ssh -o BatchMode=yes "$SSH_TARGET" \
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
             "cat ~/refacto/manifest.deployed.json 2>/dev/null || true" \
             > prod-rollback-manifest.json
           node deploy/resolve-rollback-manifest.mjs prod-rollback-manifest.json
@@ -242,8 +241,9 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
-          scp -o BatchMode=yes docker-compose.prod.yml \
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp "${SSH_OPTS[@]}" docker-compose.prod.yml \
             "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
 
       - name: Migrations production (SSH)
@@ -255,8 +255,9 @@ jobs:
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
           COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
-          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
@@ -314,8 +315,6 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/deploy_key
 
       - name: Copier docker-compose sur la VM
         env:
@@ -324,8 +323,9 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          ssh -o BatchMode=yes "$SSH_TARGET" "mkdir -p ~/refacto"
-          scp -o BatchMode=yes docker-compose.prod.yml \
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "mkdir -p ~/refacto"
+          scp "${SSH_OPTS[@]}" docker-compose.prod.yml \
             "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
 
       - name: Rollout production (SSH)
@@ -337,8 +337,9 @@ jobs:
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
           COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
-          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
@@ -382,7 +383,8 @@ jobs:
         run: |
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
-          scp -o BatchMode=yes deploy/manifest.json \
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
+          scp "${SSH_OPTS[@]}" deploy/manifest.json \
             "${SSH_TARGET}:~/refacto/manifest.deployed.json"
 
   # ---------------------------------------------------------------------------
@@ -431,8 +433,6 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/deploy_key
 
       - name: Rollback production (SSH)
         if: steps.rollback.outputs.has_rollback == 'true'
@@ -444,11 +444,12 @@ jobs:
           set -euo pipefail
           SSH_TARGET="${VM_USER}@${VM_HOST}"
           COMPOSE_FILE=~/refacto/docker-compose.prod.yml
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes)
 
-          scp -o BatchMode=yes docker-compose.prod.yml \
+          scp "${SSH_OPTS[@]}" docker-compose.prod.yml \
             "${SSH_TARGET}:~/refacto/docker-compose.prod.yml"
 
-          ssh -o BatchMode=yes "$SSH_TARGET" bash -s <<EOF
+          ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<EOF
           set -euo pipefail
           export FRONTEND_VERSION='${FRONTEND_VERSION}'
           export AUTH_SERVICE_VERSION='${AUTH_SERVICE_VERSION}'
