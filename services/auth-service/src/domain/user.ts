@@ -11,4 +11,5 @@ export interface User {
 export interface NewUser {
   email: string;
   passwordHash: string;
+  birthDate?: string;
 }

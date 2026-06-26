@@ -1,13 +1,17 @@
 import type { Request, Response } from "express";
 import type { UserRepository } from "../ports/userRepository";
 import { hashPassword } from "../domain/password";
-import { isValidEmail, isValidPassword } from "./validation";
+import { isValidBirthDate, isValidEmail, isValidPassword } from "./validation";
 
-export function register(repo: UserRepository) {
+export function registerV2(repo: UserRepository) {
   return async (req: Request, res: Response): Promise<void> => {
-    const { email, password } = req.body ?? {};
+    const { email, password, birthDate } = req.body ?? {};
 
-    if (!isValidEmail(email) || !isValidPassword(password)) {
+    if (
+      !isValidEmail(email) ||
+      !isValidPassword(password) ||
+      !isValidBirthDate(birthDate)
+    ) {
       res.status(400).json({ error: "Invalid input" });
       return;
     }
@@ -23,11 +27,13 @@ export function register(repo: UserRepository) {
     const user = await repo.create({
       email,
       passwordHash,
+      birthDate,
     });
 
     res.status(201).json({
       id: user.id,
       email: user.email,
+      birthDate: user.birthDate,
       createdAt: user.createdAt,
     });
   };

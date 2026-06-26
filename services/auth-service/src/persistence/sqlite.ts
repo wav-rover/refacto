@@ -112,6 +112,7 @@ function create(user: NewUser): Promise<User> {
     email: user.email,
     passwordHash: user.passwordHash,
     createdAt,
+    birthDate: user.birthDate,
   };
 
   return new Promise((resolve, reject) => {
@@ -121,8 +122,14 @@ function create(user: NewUser): Promise<User> {
     }
 
     db.run(
-      "INSERT INTO users (id, email, passwordHash, createdAt) VALUES (?, ?, ?, ?)",
-      [toStore.id, toStore.email, toStore.passwordHash, toStore.createdAt],
+      "INSERT INTO users (id, email, passwordHash, createdAt, birthDate) VALUES (?, ?, ?, ?, ?)",
+      [
+        toStore.id,
+        toStore.email,
+        toStore.passwordHash,
+        toStore.createdAt,
+        user.birthDate ?? null,
+      ],
       (err: Error | null) => {
         if (err) {
           reject(err);
