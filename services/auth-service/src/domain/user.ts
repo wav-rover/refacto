@@ -5,6 +5,7 @@ export interface User {
   email: string;
   passwordHash: string;
   createdAt: string;
+  birthDate?: string;
 }
 
 export interface NewUser {

@@ -24,6 +24,7 @@ interface UserRow {
   email: string;
   passwordHash: string;
   createdAt: string;
+  birthDate: string | null;
 }
 
 let db: Database | null = null;
@@ -34,6 +35,7 @@ function mapRow(row: UserRow): User {
     email: row.email,
     passwordHash: row.passwordHash,
     createdAt: row.createdAt,
+    birthDate: row.birthDate ?? undefined,
   };
 }
 
@@ -141,7 +143,7 @@ function findByEmail(email: string): Promise<User | null> {
     }
 
     db.get(
-      "SELECT id, email, passwordHash, createdAt FROM users WHERE email = ?",
+      "SELECT id, email, passwordHash, createdAt, birthDate FROM users WHERE email = ?",
       [email],
       (err: Error | null, row: UserRow | undefined) => {
         if (err) {
@@ -168,7 +170,7 @@ function findById(id: UserId): Promise<User | null> {
     }
 
     db.get(
-      "SELECT id, email, passwordHash, createdAt FROM users WHERE id = ?",
+      "SELECT id, email, passwordHash, createdAt, birthDate FROM users WHERE id = ?",
       [id],
       (err: Error | null, row: UserRow | undefined) => {
         if (err) {
