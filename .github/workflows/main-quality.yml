@@ -46,7 +46,23 @@ jobs:
           if-no-files-found: warn
 
   # -------------------------------------------------------------------------
-  # Job 2 — e2e : Playwright sur la stack complète (docker compose). Parallèle.
+  # Job 2 — contract-tests : Pact consumer + provider (gateway, services, front).
+  # -------------------------------------------------------------------------
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Tests de contrats (Pact)
+        run: npm run test:pact
+
+  # -------------------------------------------------------------------------
+  # Job 3 — e2e : Playwright sur la stack complète (docker compose). Parallèle.
   # -------------------------------------------------------------------------
   e2e:
     runs-on: ubuntu-latest
@@ -77,7 +93,7 @@ jobs:
           if-no-files-found: ignore
 
   # -------------------------------------------------------------------------
-  # Job 3 — codeql : analyse sécurité statique JS/TS -> onglet Security.
+  # Job 4 — codeql : analyse sécurité statique JS/TS -> onglet Security.
   # -------------------------------------------------------------------------
   codeql:
     runs-on: ubuntu-latest
@@ -95,7 +111,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
   # -------------------------------------------------------------------------
-  # Job 4 — sonarcloud : qualité + couverture agrégée (config = sonar-project.properties).
+  # Job 5 — sonarcloud : qualité + couverture agrégée (config = sonar-project.properties).
   # -------------------------------------------------------------------------
   sonarcloud:
     needs: unit-tests
@@ -118,7 +134,7 @@ jobs:
           projectBaseDir: .
 
   # -------------------------------------------------------------------------
-  # Job 5 — license-check : licences des deps de PROD (BLOQUANT).
+  # Job 6 — license-check : licences des deps de PROD (BLOQUANT).
   # -------------------------------------------------------------------------
   license-check:
     runs-on: ubuntu-latest
@@ -139,7 +155,7 @@ jobs:
         run: npx --yes license-checker --production --summary --onlyAllow "MIT;MIT*;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;BlueOak-1.0.0;Unlicense;(MIT OR WTFPL);(BSD-2-Clause OR MIT OR Apache-2.0)"
 
   # -------------------------------------------------------------------------
-  # Job 6 — audit : npm audit STRICT (BLOQUANT ; version informative = ci.yml).
+  # Job 7 — audit : npm audit STRICT (BLOQUANT ; version informative = ci.yml).
   # -------------------------------------------------------------------------
   audit:
     runs-on: ubuntu-latest

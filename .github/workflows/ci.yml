@@ -35,6 +35,7 @@ jobs:
       services: ${{ steps.set.outputs.services }}
       front: ${{ steps.filter.outputs.front }}
       global: ${{ steps.filter.outputs.global }}
+      pact: ${{ steps.filter.outputs.pact }}
       # Au moins un Dockerfile modifié ? (booléen fiable pour gater le job hadolint)
       has_dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
       # Liste JSON des Dockerfiles RÉELLEMENT modifiés (matrice hadolint ciblée).
@@ -75,6 +76,11 @@ jobs:
               - '.dependency-cruiser.js'
               - '.github/workflows/ci.yml'
               - '.nvmrc'
+            pact:
+              - 'contract/**'
+              - 'services/*/contract/**'
+              - 'jest.pact.config.ts'
+              - 'services/api-gateway/jest.pact.config.ts'
             # Sert UNIQUEMENT à cibler Hadolint sur les Dockerfiles modifiés
             # (via la sortie dockerfiles_files). Exclu de la matrice services.
             dockerfiles:
@@ -95,7 +101,7 @@ jobs:
           if [ "$GLOBAL" = "true" ]; then
             SERVICES="$ALL"
           else
-            SERVICES=$(echo "$CHANGES" | jq -c '[ .[] | select(. != "front" and . != "global" and . != "dockerfiles") ]')
+            SERVICES=$(echo "$CHANGES" | jq -c '[ .[] | select(. != "front" and . != "global" and . != "dockerfiles" and . != "pact") ]')
           fi
           echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
           echo "Services à tester : $SERVICES"
@@ -185,7 +191,30 @@ jobs:
         run: npm audit --omit=dev
 
   # ---------------------------------------------------------------------------
-  # Job 5 — hadolint : lint des Dockerfiles RÉELLEMENT MODIFIÉS (matrice ciblée).
+  # Job 5 — contract-tests : Pact consumer + provider (ciblé sur les changements
+  # touchant les contrats ou les services participants).
+  # ---------------------------------------------------------------------------
+  contract-tests:
+    needs: detect
+    if: >-
+      needs.detect.outputs.pact == 'true' ||
+      needs.detect.outputs.services != '[]' ||
+      needs.detect.outputs.front == 'true' ||
+      needs.detect.outputs.global == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Tests de contrats (Pact)
+        run: npm run test:pact
+
+  # ---------------------------------------------------------------------------
+  # Job 6 — hadolint : lint des Dockerfiles RÉELLEMENT MODIFIÉS (matrice ciblée).
   # Skippé si aucun Dockerfile n'a changé. Une entrée de matrice par fichier
   # (annotations par Dockerfile dans l'UI), via hadolint/hadolint-action.
   # ---------------------------------------------------------------------------
@@ -205,7 +234,7 @@ jobs:
           dockerfile: ${{ matrix.dockerfile }}
 
   # ---------------------------------------------------------------------------
-  # Job 6 — build-images : build amd64 + scan Trivy bloquant sur les Dockerfiles
+  # Job 7 — build-images : build amd64 + scan Trivy bloquant sur les Dockerfiles
   # RÉELLEMENT MODIFIÉS. Jamais de push (PR uniquement).
   # Même matrice que hadolint : une entrée par Dockerfile touché.
   # ---------------------------------------------------------------------------
@@ -282,7 +311,7 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Job 7 — integration : stack hybride (manifeste GHCR + build local) + E2E.
+  # Job 8 — integration : stack hybride (manifeste GHCR + build local) + E2E.
   # Services modifiés buildés localement ; les autres tirés du manifeste.
   # Skippé si aucun service/front/global touché, ou PR depuis un fork.
   # ---------------------------------------------------------------------------
