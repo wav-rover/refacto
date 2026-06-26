@@ -178,7 +178,6 @@ jobs:
   migrate-production:
     needs: manual-gate
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
       packages: read
@@ -281,7 +280,6 @@ jobs:
   deploy-production:
     needs: migrate-production
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
       packages: read
@@ -399,7 +397,6 @@ jobs:
       (needs.migrate-production.result == 'failure' ||
        needs.deploy-production.result == 'failure')
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
       packages: read

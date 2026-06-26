@@ -111,7 +111,7 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
    - copie de `docker-compose.prod.yml` ;
    - `docker login ghcr.io`, `pull`, migrations one-shot (`*-migrate`), puis `up -d` ;
    - contrôle que les services applicatifs + Redis sont bien `running`.
-3. **Gate manuelle** : approbation requise (environment GitHub `production` avec reviewer(s)) avant toute mise en production.
+3. **Gate manuelle** : approbation requise (environment GitHub `production` avec reviewer(s)) — **uniquement** sur le job `manual-gate` ; `migrate-production`, `deploy-production` et `rollback-production` enchaînent ensuite sans nouvelle approbation.
 4. **Migrations production** (SSH, job dédié — étape 7 CD) :
    - connexion SSH vers la VM de production (`~/refacto`) ;
    - copie de `docker-compose.prod.yml` ;
@@ -142,7 +142,7 @@ Principe directeur (**fail-fast**) : chaque commit déclenche le moins coûteux 
 
 **Prérequis VM** : Docker + plugin Compose installés, utilisateur dans le groupe `docker`, répertoire `~/refacto` accessible en écriture. L'environment GitHub `integration` ne doit **pas** avoir de reviewers (déploiement automatique).
 
-**Secrets GitHub requis (production)** :
+**Secrets GitHub requis (production)** — à définir en **secrets du repository** (les jobs migrate/deploy/rollback n'utilisent pas l'environment `production`, seul `manual-gate` l'utilise pour la validation) :
 
 | Secret | Rôle |
 |---|---|
