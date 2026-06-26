@@ -23,6 +23,7 @@ async function create(user: NewUser): Promise<User> {
     email: user.email,
     passwordHash: user.passwordHash,
     createdAt,
+    birthDate: user.birthDate,
   };
   byId.set(id, created);
   byEmail.set(user.email.toLowerCase(), created);

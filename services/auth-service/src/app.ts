@@ -3,6 +3,7 @@ import session from "express-session";
 
 import type { UserRepository } from "./ports/userRepository";
 import { register } from "./routes/register";
+import { registerV2 } from "./routes/registerV2";
 import { login } from "./routes/login";
 import { logout } from "./routes/logout";
 import { me } from "./routes/me";
@@ -41,6 +42,10 @@ export function createApp(repo: UserRepository): Application {
   v1.post("/auth/logout", logout);
   v1.get("/auth/me", requireAuth, me);
   app.use("/v1", v1);
+
+  const v2 = express.Router();
+  v2.post("/auth/register", registerV2(repo));
+  app.use("/v2", v2);
 
   return app;
 }
