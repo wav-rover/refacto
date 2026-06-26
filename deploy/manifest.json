@@ -1,12 +1,12 @@
 {
-  "updated_at": "2026-06-26T12:30:36.625Z",
-  "commit": "9cdac8b",
+  "updated_at": "2026-06-26T12:38:44.112Z",
+  "commit": "ca16ca0",
   "services": {
     "auth-service": "1.0.2",
     "project-service": "1.0.0",
     "task-service": "1.0.0",
     "notification-service": "1.0.0",
-    "api-gateway": "1.0.0",
+    "api-gateway": "1.0.1",
     "frontend": "1.0.0"
   }
 }
