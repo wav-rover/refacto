@@ -2,6 +2,7 @@ import { test as setup, expect } from "@playwright/test";
 
 const TEST_EMAIL = "e2e-test@example.com";
 const TEST_PASSWORD = "testpassword123";
+const TEST_BIRTH_DATE = "1990-01-15";
 const STORAGE_STATE_PATH = "storageState-microservices.json";
 
 setup("authenticate for microservices", async ({ page }) => {
@@ -44,6 +45,7 @@ setup("authenticate for microservices", async ({ page }) => {
     // User doesn't exist yet → register (app auto-logs in after successful register).
     await page.locator("#register-email").fill(TEST_EMAIL);
     await page.locator("#register-password").fill(TEST_PASSWORD);
+    await page.locator("#register-birthdate").fill(TEST_BIRTH_DATE);
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
     // Edge case: another process registered the same email between the login

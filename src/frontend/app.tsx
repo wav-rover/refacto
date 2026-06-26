@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { Container, Row, Col, Button, Alert, Form } from "react-bootstrap";
 import { apiBaseUrl } from "./config";
+import { registerUser } from "./apiClient";
 import ProjectsView from "./ProjectsView";
 import TasksView from "./TasksView";
 import NotificationsView from "./NotificationsView";
@@ -51,16 +52,11 @@ function App() {
       .catch(() => setAuthError("Erreur de connexion"));
   };
 
-  const handleRegister = (email: string, password: string) => {
+  const handleRegister = (email: string, password: string, birthDate: string) => {
     setAuthError(null);
-    fetch(`${apiBaseUrl}/api/v1/auth/register`, {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    })
+    registerUser({ email, password, birthDate })
       .then((r) => {
-        if (r.ok) {
+        if (r.status === 201) {
           // Après inscription, on enchaîne un login pour garder le flux simple.
           handleLogin(email, password);
         } else if (r.status === 409) {
@@ -183,7 +179,7 @@ function App() {
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => void;
-  onRegister: (email: string, password: string) => void;
+  onRegister: (email: string, password: string, birthDate: string) => void;
 }
 
 function LoginForm({ onLogin, onRegister }: LoginFormProps) {
@@ -261,12 +257,13 @@ function LoginPanel({ onLogin }: LoginPanelProps) {
 }
 
 interface RegisterPanelProps {
-  onRegister: (email: string, password: string) => void;
+  onRegister: (email: string, password: string, birthDate: string) => void;
 }
 
 function RegisterPanel({ onRegister }: RegisterPanelProps) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [birthDate, setBirthDate] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [localError, setLocalError] = React.useState<string | null>(null);
 
@@ -274,11 +271,11 @@ function RegisterPanel({ onRegister }: RegisterPanelProps) {
     e.preventDefault();
     setLocalError(null);
     setSubmitting(true);
-    onRegister(email, password);
+    onRegister(email, password, birthDate);
     setTimeout(() => setSubmitting(false), 1000);
   };
 
-  const isFormValid = !!email && !!password;
+  const isFormValid = !!email && !!password && !!birthDate;
 
   return (
     <>
@@ -315,6 +312,19 @@ function RegisterPanel({ onRegister }: RegisterPanelProps) {
             }
             required
             aria-label="Mot de passe"
+          />
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="register-birthdate">Date de naissance</Form.Label>
+          <Form.Control
+            id="register-birthdate"
+            type="date"
+            value={birthDate}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setBirthDate(e.target.value)
+            }
+            required
+            aria-label="Date de naissance"
           />
         </Form.Group>
         <Button

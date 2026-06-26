@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Authentification Microservices", () => {
   const password = "testpassword123";
+  const birthDate = "1990-01-15";
 
   test("Afficher le formulaire de login quand non connecté", async ({
     page,
@@ -12,6 +13,7 @@ test.describe("Authentification Microservices", () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.locator("#login-email")).toBeVisible();
     await expect(page.locator("#login-password")).toBeVisible();
+    await expect(page.locator("#register-birthdate")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Se connecter" })
     ).toBeVisible();
@@ -31,6 +33,7 @@ test.describe("Authentification Microservices", () => {
     await page.locator("#login-password").fill(password);
     await page.locator("#register-email").fill(uniqueEmail);
     await page.locator("#register-password").fill(password);
+    await page.locator("#register-birthdate").fill(birthDate);
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
     // En cas de collision (rare en local, mais possible si volumes persistants),
@@ -79,6 +82,7 @@ test.describe("Authentification Microservices", () => {
     await page.locator("#login-password").fill(existingPassword);
     await page.locator("#register-email").fill(existingEmail);
     await page.locator("#register-password").fill(existingPassword);
+    await page.locator("#register-birthdate").fill(birthDate);
 
     await page.getByRole("button", { name: "Créer un compte" }).click();
 
