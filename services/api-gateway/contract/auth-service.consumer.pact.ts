@@ -47,7 +47,7 @@ describe("Contrat api-gateway -> auth-service", () => {
       process.env.API_VERSION = "v1";
 
       const res = await forwardJson<{ email: string }>({
-        baseUrl: getAuthServiceUrl(),
+        baseUrl: getAuthServiceUrl("v1"),
         path: "/auth/register",
         method: "POST",
         headers: { accept: "application/json" },
@@ -80,7 +80,7 @@ describe("Contrat api-gateway -> auth-service", () => {
       process.env.API_VERSION = "v1";
 
       const res = await forwardJson<{ error: string }>({
-        baseUrl: getAuthServiceUrl(),
+        baseUrl: getAuthServiceUrl("v1"),
         path: "/auth/login",
         method: "POST",
         headers: { accept: "application/json" },
@@ -89,6 +89,52 @@ describe("Contrat api-gateway -> auth-service", () => {
 
       expect(res.status).toBe(401);
       expect(res.body?.error).toBeDefined();
+    });
+  });
+
+  it("inscription v2 avec birthDate (POST /v2/auth/register -> 201)", async () => {
+    provider
+      .given("la base utilisateurs est vide")
+      .uponReceiving("une demande d'inscription v2 avec date de naissance")
+      .withRequest({
+        method: "POST",
+        path: "/v2/auth/register",
+        headers: { "Content-Type": "application/json" },
+        body: {
+          email: "contract-v2@example.com",
+          password: "password123",
+          birthDate: "1990-05-15",
+        },
+      })
+      .willRespondWith({
+        status: 201,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: {
+          id: like("user-123"),
+          email: "contract-v2@example.com",
+          birthDate: "1990-05-15",
+          createdAt: like("2026-01-01T00:00:00.000Z"),
+        },
+      });
+
+    await provider.executeTest(async (mockServer) => {
+      process.env.AUTH_SERVICE_URL = mockServer.url;
+
+      const res = await forwardJson<{ email: string; birthDate: string }>({
+        baseUrl: getAuthServiceUrl("v2"),
+        path: "/auth/register",
+        method: "POST",
+        headers: { accept: "application/json" },
+        body: {
+          email: "contract-v2@example.com",
+          password: "password123",
+          birthDate: "1990-05-15",
+        },
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body?.email).toBe("contract-v2@example.com");
+      expect(res.body?.birthDate).toBe("1990-05-15");
     });
   });
 });

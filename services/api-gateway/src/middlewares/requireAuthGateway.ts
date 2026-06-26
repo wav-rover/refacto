@@ -19,7 +19,7 @@ export async function requireAuthGateway(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const baseUrl = getAuthServiceUrl();
+  const baseUrl = getAuthServiceUrl("v1");
 
   try {
     const { status, body } = await forwardJson<MeResponseBody>({
