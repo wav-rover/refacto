@@ -6,7 +6,7 @@ import { forwardJson } from "../infra/httpClient";
 const router = Router();
 
 router.post("/register", async (req, res) => {
-  const baseUrl = getAuthServiceUrl();
+  const baseUrl = getAuthServiceUrl("v1");
 
   const { status, headers, body } = await forwardJson({
     baseUrl,
@@ -29,7 +29,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const baseUrl = getAuthServiceUrl();
+  const baseUrl = getAuthServiceUrl("v1");
 
   const { status, headers, body } = await forwardJson({
     baseUrl,
@@ -52,7 +52,7 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/me", async (req, res) => {
-  const baseUrl = getAuthServiceUrl();
+  const baseUrl = getAuthServiceUrl("v1");
 
   const { status, headers, body } = await forwardJson({
     baseUrl,
@@ -74,7 +74,7 @@ router.get("/me", async (req, res) => {
 });
 
 router.post("/logout", async (req, res) => {
-  const baseUrl = getAuthServiceUrl();
+  const baseUrl = getAuthServiceUrl("v1");
 
   const { status, headers, body } = await forwardJson({
     baseUrl,
