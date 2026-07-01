@@ -1,6 +1,6 @@
 name: Nightly CI
 
-# Pipeline #4 (ADR 004) — CI lourde nocturne :
+# Pipeline #4 (ADR 004) — CI lourde nocturne  :
 # suite complète de tests (unitaires + E2E stack Redis) + scans approfondis INFORMATIFS.
 # Les tests sont bloquants ; les scans publient des rapports sans faire échouer le workflow.
 on:
